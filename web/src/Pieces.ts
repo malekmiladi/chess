@@ -82,15 +82,23 @@ export class Pawn implements Piece {
         for (const step of this.moveChecks.diagonal) {
             const index: number = toIndex(x + step.x, y + step.y);
             const piece: (Piece | undefined) = board.currState[index];
-            if (piece && piece.color != this.color) {
-                this.legalMoves.push(index);
+            if (piece) {
+                if (piece.color != this.color) {
+                    this.legalMoves.push(index);
+                } else {
+                    this.defendedPieces.push(index);
+                }
             }
         }
         for (const step of this.moveChecks.vertical) {
             const index: number = toIndex(x + step.x, y + step.y);
             const piece: (Piece | undefined) = board.currState[index];
-            if (!piece) {
-                this.legalMoves.push(index);
+            if (piece) {
+                if (piece.color != this.color) {
+                    this.legalMoves.push(index);
+                } else {
+                    this.defendedPieces.push(index);
+                }
             }
         }
     }
@@ -144,6 +152,8 @@ export class King implements Piece {
                 const piece: (Piece | undefined) = board.currState[index];
                 if (!piece || (piece.color != this.color)) {
                     this.legalMoves.push(index);
+                } else if (piece.color == this.color) {
+                    this.defendedPieces.push(index);
                 }
             }
         }
@@ -199,6 +209,8 @@ export class Queen implements Piece {
             } else {
                 if (piece.color != this.color) {
                     this.legalMoves.push(index);
+                } else {
+                    this.defendedPieces.push(index);
                 }
                 stopWalking = true;
             }
@@ -261,6 +273,8 @@ export class Bishop implements Piece {
             } else {
                 if (piece.color != this.color) {
                     this.legalMoves.push(index);
+                } else {
+                    this.defendedPieces.push(index);
                 }
                 stopWalking = true;
             }
@@ -319,6 +333,8 @@ export class Knight implements Piece {
             const piece: (Piece | undefined) = board.currState[index];
             if (!piece || (piece.color != this.color)) {
                 this.legalMoves.push(index);
+            } else if (piece.color == this.color) {
+                this.defendedPieces.push(index);
             }
         }
     }
@@ -368,6 +384,8 @@ export class Rook implements Piece {
             } else {
                 if (piece.color != this.color) {
                     this.legalMoves.push(index);
+                } else {
+                    this.defendedPieces.push(index);
                 }
                 stopWalking = true;
             }
