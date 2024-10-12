@@ -1,50 +1,69 @@
-import { GameEventType } from "./GameEvents";
+import { Board } from "./Board";
 import { sprites, Sprite } from "./Sprites";
 
 export enum Color {
-
     WHITE = 1,
     BLACK = 2
-
 }
 
-export type Coords = {
+export type Move = {
+    current: number,
+    target: number
+}
 
+export type Direction = {
+    diagonal: Step[],
+    vertical: Step[]
+}
+
+export type Step = {
     x: number,
     y: number
+}
 
+export function toXY(curr: number): [number, number] {
+    return [curr / 8, curr % 8];
+}
+
+export function toIndex(x: number, y: number) {
+    return x * 8 + y;
 }
 
 export interface Piece {
-
     id: number;
-    position: Coords;
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    moveChecks: Direction;
+    legalMoves: number[];
 
-    move(): void;
-    generateLegalMoves(): void;
-    isLegalMove(): boolean;
-
+    generateLegalMoves(curr: number, board: Board): void;
+    isLegalMove(target: number): boolean;
 }
 
 export class Pawn implements Piece {
 
-    id: number;
-    position: Coords;
-    color: Color;
-    legalMoves: Coords[];
-    sprite: Sprite;
-    prevPositions: Coords[];
+    firstMove: boolean = true;
 
-    constructor(id: number, position: Coords, color: Color) {
+    moveChecks: Direction = {
+        diagonal: [
+            { x: -1, y: -1 },
+            { x: -1, y: 1 }
+        ],
+        vertical: [
+            { x: -1, y: 0 }
+        ]
+    };
+
+
+    id: number;
+    color: Color;
+    sprite: Sprite;
+    legalMoves: number[];
+
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.pawn;
         } else {
@@ -52,35 +71,53 @@ export class Pawn implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
+    generateLegalMoves(curr: number, board: Board): void {
+        const [x, y]: [number, number] = toXY(curr);
+        for (const step of this.moveChecks.diagonal) {
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (piece && piece.color != this.color) {
+                this.legalMoves.push(index);
+            }
+        }
+        for (const step of this.moveChecks.vertical) {
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (!piece) {
+                this.legalMoves.push(index);
+            }
+        }
     }
-    generateLegalMoves(): void {
 
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
     }
-    isLegalMove(): boolean {
-        return true;
-    }
-
 }
 
 export class King implements Piece {
-
     id: number;
-    position: Coords;
+    moveChecks: Direction = {
+        diagonal: [
+            { x: -1, y: -1 },
+            { x: -1, y: 1 },
+            { x: 1, y: -1 },
+            { x: 1, y: 1 }
+        ],
+        vertical: [
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0, y: -1 },
+            { x: 0, y: 1 }
+        ]
+    };
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    legalMoves: number[];
 
-    constructor(id: number, position: Coords, color: Color) {
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.king;
         } else {
@@ -88,35 +125,38 @@ export class King implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
-    }
-    generateLegalMoves(): void {
+    generateLegalMoves(curr: number, board: Board): void {
 
     }
-    isLegalMove(): boolean {
-        return true;
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
     }
-
 }
 
 export class Queen implements Piece {
-
     id: number;
-    position: Coords;
+    moveChecks: Direction = {
+        diagonal: [
+            { x: -1, y: -1 },
+            { x: -1, y: 1 },
+            { x: 1, y: -1 },
+            { x: 1, y: 1 }
+        ],
+        vertical: [
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0, y: -1 },
+            { x: 0, y: 1 }
+        ]
+    };
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    legalMoves: number[];
 
-    constructor(id: number, position: Coords, color: Color) {
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.king;
         } else {
@@ -124,35 +164,58 @@ export class Queen implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
+    walkPath(start: number, step: Step, board: Board) {
+        let currIndex: number = start;
+        let stopWalking: boolean = false;
+        while ((currIndex < 64 || currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = toXY(currIndex);
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (!piece) {
+                this.legalMoves.push(index);
+            } else {
+                if (piece.color != this.color) {
+                    this.legalMoves.push(index);
+                }
+                stopWalking = true;
+            }
+            currIndex = index;
+        }
     }
-    generateLegalMoves(): void {
 
-    }
-    isLegalMove(): boolean {
-        return true;
+    generateLegalMoves(curr: number, board: Board): void {
+        for (const step of this.moveChecks.diagonal) {
+            this.walkPath(curr, step, board);
+        }
+        for (const step of this.moveChecks.vertical) {
+            this.walkPath(curr, step, board);
+        }
     }
 
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
+    }
 }
 
 export class Bishop implements Piece {
-
     id: number;
-    position: Coords;
+    moveChecks: Direction = {
+        diagonal: [
+            { x: -1, y: -1 },
+            { x: -1, y: 1 },
+            { x: 1, y: -1 },
+            { x: 1, y: 1 }
+        ],
+        vertical: []
+    };
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    legalMoves: number[];
 
-    constructor(id: number, position: Coords, color: Color) {
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.king;
         } else {
@@ -160,35 +223,59 @@ export class Bishop implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
+    walkPath(start: number, step: Step, board: Board) {
+        let currIndex: number = start;
+        let stopWalking: boolean = false;
+        while ((currIndex < 64 || currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = toXY(currIndex);
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (!piece) {
+                this.legalMoves.push(index);
+            } else {
+                if (piece.color != this.color) {
+                    this.legalMoves.push(index);
+                }
+                stopWalking = true;
+            }
+            currIndex = index;
+        }
     }
-    generateLegalMoves(): void {
 
-    }
-    isLegalMove(): boolean {
-        return true;
+    generateLegalMoves(curr: number, board: Board): void {
+        for (const step of this.moveChecks.diagonal) {
+            this.walkPath(curr, step, board);
+        }
     }
 
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
+    }
 }
 
 export class Knight implements Piece {
-
     id: number;
-    position: Coords;
+    moveChecks: Direction = {
+        diagonal: [
+            { x: -1, y: -2 },
+            { x: -1, y: 2 },
+            { x: -2, y: -1 },
+            { x: -2, y: 1 },
+            { x: 1, y: -2 },
+            { x: 1, y: 2 },
+            { x: 2, y: -1 },
+            { x: 2, y: 1 }
+        ],
+        vertical: []
+    };
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    legalMoves: number[];
 
-    constructor(id: number, position: Coords, color: Color) {
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.king;
         } else {
@@ -196,35 +283,40 @@ export class Knight implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
+    generateLegalMoves(curr: number, board: Board): void {
+        for (const step of this.moveChecks.diagonal) {
+            const [x, y]: [number, number] = toXY(curr);
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (!piece || (piece.color != this.color)) {
+                this.legalMoves.push(index);
+            }  
+        }
     }
-    generateLegalMoves(): void {
-
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
     }
-    isLegalMove(): boolean {
-        return true;
-    }
-
 }
 
 export class Rook implements Piece {
-
     id: number;
-    position: Coords;
+    moveChecks: Direction = {
+        diagonal: [],
+        vertical: [
+            { x: -1, y: 0 },
+            { x: 1, y: 0 },
+            { x: 0, y: -1 },
+            { x: 0, y: 1 }
+        ]
+    };
     color: Color;
-    legalMoves: Coords[];
     sprite: Sprite;
-    prevPositions: Coords[];
+    legalMoves: number[];
 
-    constructor(id: number, position: Coords, color: Color) {
+    constructor(id: number, color: Color) {
         this.id = id;
-        this.position = position;
         this.color = color;
         this.legalMoves = [];
-        this.prevPositions = [];
         if (color === Color.WHITE) {
             this.sprite = sprites.black.king;
         } else {
@@ -232,16 +324,32 @@ export class Rook implements Piece {
         }
     }
 
-    move(): void {
-        this.prevPositions.push(this.position);
-        //notifyUpdater(this);
-        this.generateLegalMoves();
+    walkPath(start: number, step: Step, board: Board) {
+        let currIndex: number = start;
+        let stopWalking: boolean = false;
+        while ((currIndex < 64 || currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = toXY(currIndex);
+            const index: number = toIndex(x + step.x, y + step.y);
+            const piece: (Piece | undefined) = board.currState[index];
+            if (!piece) {
+                this.legalMoves.push(index);
+            } else {
+                if (piece.color != this.color) {
+                    this.legalMoves.push(index);
+                }
+                stopWalking = true;
+            }
+            currIndex = index;
+        }
     }
-    generateLegalMoves(): void {
 
-    }
-    isLegalMove(): boolean {
-        return true;
+    generateLegalMoves(curr: number, board: Board): void {
+        for (const step of this.moveChecks.vertical) {
+            this.walkPath(curr, step, board);
+        }
     }
 
+    isLegalMove(target: number): boolean {
+        return this.legalMoves.includes(target);
+    }
 }

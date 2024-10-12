@@ -1,4 +1,4 @@
-import { Coords, Piece, Color } from "./Pieces"
+import { Color, Move } from "./Pieces"
 
 export enum GameEventType {
     NEW_GAME,
@@ -17,12 +17,11 @@ export type GameEvent =
     }
     | {
         type: GameEventType.MOVE_PIECE,
-        piece: Piece,
-        move: Coords
+        move: Move
     }
     | {
         type: GameEventType.TAKE_PIECE,
-        piece: Piece
+        target: number
     }
     | {
         type: GameEventType.CHECK,
