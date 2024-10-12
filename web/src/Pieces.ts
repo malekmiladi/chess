@@ -35,7 +35,9 @@ export interface Piece {
     sprite: Sprite;
     moveChecks: Direction;
     legalMoves: number[];
+    defendedPieces: number[];
 
+    getAttackedSquares(): number[];
     generateLegalMoves(curr: number, board: Board): void;
     isLegalMove(target: number): boolean;
 }
@@ -58,17 +60,21 @@ export class Pawn implements Piece {
     id: number;
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.pawn;
+            this.sprite = sprites.pawn.black;
         } else {
-            this.sprite = sprites.white.pawn;
+            this.sprite = sprites.pawn.white;
         }
+    }
+
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
     }
 
     generateLegalMoves(curr: number, board: Board): void {
@@ -112,21 +118,35 @@ export class King implements Piece {
     };
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.king;
+            this.sprite = sprites.king.black;
         } else {
-            this.sprite = sprites.white.king;
+            this.sprite = sprites.king.white;
         }
     }
 
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
+    }
     generateLegalMoves(curr: number, board: Board): void {
-
+        const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
+        const attackedSquares: boolean[] = board.getAttackedSquares(adversary);
+        for (const step of this.moveChecks.diagonal) {
+            const [x, y]: [number, number] = toXY(curr);
+            const index: number = toIndex(x + step.x, y + step.y);
+            if (!attackedSquares[index]) {
+                const piece: (Piece | undefined) = board.currState[index];
+                if (!piece || (piece.color != this.color)) {
+                    this.legalMoves.push(index);
+                }
+            }
+        }
     }
     isLegalMove(target: number): boolean {
         return this.legalMoves.includes(target);
@@ -151,19 +171,22 @@ export class Queen implements Piece {
     };
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.king;
+            this.sprite = sprites.queen.black;
         } else {
-            this.sprite = sprites.white.king;
+            this.sprite = sprites.queen.white;
         }
     }
 
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
+    }
     walkPath(start: number, step: Step, board: Board) {
         let currIndex: number = start;
         let stopWalking: boolean = false;
@@ -210,19 +233,22 @@ export class Bishop implements Piece {
     };
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.king;
+            this.sprite = sprites.bishop.black;
         } else {
-            this.sprite = sprites.white.king;
+            this.sprite = sprites.bishop.white;
         }
     }
 
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
+    }
     walkPath(start: number, step: Step, board: Board) {
         let currIndex: number = start;
         let stopWalking: boolean = false;
@@ -270,19 +296,22 @@ export class Knight implements Piece {
     };
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.king;
+            this.sprite = sprites.knight.black;
         } else {
-            this.sprite = sprites.white.king;
+            this.sprite = sprites.knight.white;
         }
     }
 
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
+    }
     generateLegalMoves(curr: number, board: Board): void {
         for (const step of this.moveChecks.diagonal) {
             const [x, y]: [number, number] = toXY(curr);
@@ -290,7 +319,7 @@ export class Knight implements Piece {
             const piece: (Piece | undefined) = board.currState[index];
             if (!piece || (piece.color != this.color)) {
                 this.legalMoves.push(index);
-            }  
+            }
         }
     }
     isLegalMove(target: number): boolean {
@@ -311,19 +340,22 @@ export class Rook implements Piece {
     };
     color: Color;
     sprite: Sprite;
-    legalMoves: number[];
+    legalMoves: number[] = [];
+    defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        this.legalMoves = [];
         if (color === Color.WHITE) {
-            this.sprite = sprites.black.king;
+            this.sprite = sprites.rook.black;
         } else {
-            this.sprite = sprites.white.king;
+            this.sprite = sprites.rook.white;
         }
     }
 
+    getAttackedSquares(): number[] {
+        return this.legalMoves.concat(this.defendedPieces);
+    }
     walkPath(start: number, step: Step, board: Board) {
         let currIndex: number = start;
         let stopWalking: boolean = false;

@@ -8,20 +8,28 @@ export type Sprite = {
 }
 
 export const sprites = {
-    black: {
-        king: {} as Sprite,
-        queen: {} as Sprite,
-        bishop: {} as Sprite,
-        knight: {} as Sprite,
-        rook: {} as Sprite,
-        pawn: {} as Sprite
+    king: {
+        black: {} as Sprite,
+        white: {} as Sprite
     },
-    white: {
-        king: {} as Sprite,
-        queen: {} as Sprite,
-        bishop: {} as Sprite,
-        knight: {} as Sprite,
-        rook: {} as Sprite,
-        pawn: {} as Sprite
+    queen: {
+        black: {} as Sprite,
+        white: {} as Sprite
+    },
+    bishop: {
+        black: {} as Sprite,
+        white: {} as Sprite
+    },
+    knight: {
+        black: {} as Sprite,
+        white: {} as Sprite
+    },
+    rook: {
+        black: {} as Sprite,
+        white: {} as Sprite
+    },
+    pawn: {
+        black: {} as Sprite,
+        white: {} as Sprite
     }
 };
