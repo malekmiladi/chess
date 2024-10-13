@@ -1,4 +1,4 @@
-import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move } from './Pieces.js'
+import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move, toXY } from './Pieces.js'
 import { Notifier } from './Notifier.js'
 
 export class Board {
@@ -45,6 +45,12 @@ export class Board {
         }
         for (let i: number = 40; i < 48; i++) {
             this.underWhiteAttack[i] = true;
+        }
+        for (let i: number = 0; i < 64; i++) {
+            const piece = this.currState[i];
+            if (piece) {
+                piece.generateLegalMoves(i, this);
+            }
         }
     }
 

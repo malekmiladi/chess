@@ -1,8 +1,8 @@
 export class Utils {
-    xToFile(): string {
-        return '';
+    xToFile(x: number): string {
+        return 'a' + x;
     } 
-    yToRank(): string {
-        return '';
+    yToRank(y: number): string {
+        return (y + 1).toString();
     }
 }
