@@ -1,0 +1,56 @@
+* {
+	margin: 0px;
+	box-sizing: border-box;
+}
+
+body {
+	background-color: rgb(20, 20, 20);
+	color: white;
+	height: 100svh;
+	position: relative;
+}
+
+.board {
+    height: 800px;
+    width: 800px;
+}
+
+.row {
+    column-count: 8;
+    column-gap: 0;
+    height: 100px;
+    width: 800px;
+}
+
+img {
+    pointer-events: none;
+}
+
+.piece {
+    position: relative;
+    z-index: 9;
+}
+
+.piece img {
+    width: 100px;
+    height: 100px;
+    position: relative;
+    z-index: -9;
+}
+
+.square {
+    position: relative;
+}
+
+.square, .piece {
+    width: 100px;
+    height: 100px;
+}
+
+.white {
+    background-color: white;
+}
+
+.brown {
+    background-color: #CD7F32;
+}
