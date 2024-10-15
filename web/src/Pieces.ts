@@ -1,5 +1,6 @@
-import { Board } from "./Board.js";
-import { sprites, Sprite } from "./Sprites.js";
+import { Board } from "./board.js";
+import { sprites, Sprite } from "./sprites.js";
+import { Utils } from "./utils.js";
 
 export enum Color {
     WHITE = 1,
@@ -16,18 +17,6 @@ export type Step = {
     y: number
 }
 
-export function toXY(curr: number): [number, number] {
-    return [Math.floor(curr / 8), curr % 8];
-}
-
-export function toIndex(x: number, y: number) {
-    return x * 8 + y;
-}
-
-export function xyWithingBounds(xy: [number, number]) {
-    const [x, y]: [number, number] = xy;
-    return (-1 < x && x < 8) && (-1 < y && y < 8);
-}
 export interface Piece {
     id: number;
     color: Color;
@@ -55,19 +44,21 @@ export class Pawn implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.pawn.black;
+            this.sprite = sprites.pawn.white;
 
             this.moveChecks = [
                 { x: -1, y: -1 },
                 { x: -1, y: 1 },
-                { x: -1, y: 0 }
+                { x: -1, y: 0 },
+                { x: -2, y: 0 }
             ]
         } else {
-            this.sprite = sprites.pawn.white;
+            this.sprite = sprites.pawn.black;
             this.moveChecks = [
                 { x: 1, y: -1 },
                 { x: 1, y: 1 },
-                { x: 1, y: 0 }
+                { x: 1, y: 0 },
+                { x: 2, y: 0 }
             ]
         }
     }
@@ -77,11 +68,12 @@ export class Pawn implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
-        const [x, y]: [number, number] = toXY(curr);
+        this.legalMoves = [];
+        const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 const piece: (Piece | undefined) = board.currState[index];
                 if (step.y != 0) {
                     if (piece) {
@@ -93,7 +85,9 @@ export class Pawn implements Piece {
                     }
                 } else {
                     if (!piece) {
-                        this.legalMoves.push(index);
+                        if (step.x == 1 || (step.x == 2 && this.firstMove)) {
+                            this.legalMoves.push(index);
+                        }
                     }
                 }
             }
@@ -127,9 +121,9 @@ export class King implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.king.black;
-        } else {
             this.sprite = sprites.king.white;
+        } else {
+            this.sprite = sprites.king.black;
         }
     }
 
@@ -138,13 +132,14 @@ export class King implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
+        this.legalMoves = [];
         const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
         const attackedSquares: boolean[] = board.getAttackedSquares(adversary);
-        const [x, y]: [number, number] = toXY(curr);
+        const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 if (!attackedSquares[index]) {
                     const piece: (Piece | undefined) = board.currState[index];
                     if (!piece || (piece.color != this.color)) {
@@ -183,9 +178,9 @@ export class Queen implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.queen.black;
-        } else {
             this.sprite = sprites.queen.white;
+        } else {
+            this.sprite = sprites.queen.black;
         }
     }
 
@@ -196,11 +191,11 @@ export class Queen implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = toXY(currIndex);
+        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 if (index > -1 && index < 64) {
                     const piece: (Piece | undefined) = board.currState[index];
                     if (!piece) {
@@ -224,6 +219,7 @@ export class Queen implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
+        this.legalMoves = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }
@@ -251,9 +247,9 @@ export class Bishop implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.bishop.black;
-        } else {
             this.sprite = sprites.bishop.white;
+        } else {
+            this.sprite = sprites.bishop.black;
         }
     }
 
@@ -263,11 +259,11 @@ export class Bishop implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = toXY(currIndex);
+        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 if (index > -1 && index < 64) {
                     const piece: (Piece | undefined) = board.currState[index];
                     if (!piece) {
@@ -291,6 +287,7 @@ export class Bishop implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
+        this.legalMoves = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }
@@ -322,9 +319,9 @@ export class Knight implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.knight.black;
-        } else {
             this.sprite = sprites.knight.white;
+        } else {
+            this.sprite = sprites.knight.black;
         }
     }
 
@@ -333,11 +330,12 @@ export class Knight implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
+        this.legalMoves = [];
         for (const step of this.moveChecks) {
-            const [x, y]: [number, number] = toXY(curr);
+            const [x, y]: [number, number] = Utils.toXY(curr);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 const piece: (Piece | undefined) = board.currState[index];
                 if (!piece || (piece.color != this.color)) {
                     this.legalMoves.push(index);
@@ -370,9 +368,9 @@ export class Rook implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.rook.black;
-        } else {
             this.sprite = sprites.rook.white;
+        } else {
+            this.sprite = sprites.rook.black;
         }
     }
 
@@ -383,11 +381,11 @@ export class Rook implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = toXY(currIndex);
+        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (xyWithingBounds([x1, y1])) {
-                const index: number = toIndex(x1, y1);
+            if (Utils.xyWithingBounds([x1, y1])) {
+                const index: number = Utils.toIndex(x1, y1);
                 if (index > -1 && index < 64) {
                     const piece: (Piece | undefined) = board.currState[index];
                     if (!piece) {
@@ -411,6 +409,7 @@ export class Rook implements Piece {
     }
 
     generateLegalMoves(curr: number, board: Board): void {
+        this.legalMoves = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }

@@ -1,4 +1,4 @@
-import { Color, Move } from "./Pieces.js"
+import { Color, Move } from "./pieces.js"
 
 export enum GameEventType {
     NEW_GAME,

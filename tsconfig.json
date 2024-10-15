@@ -3,7 +3,7 @@
         "target": "es2016",
         "module": "es6",
         "rootDir": "./web/src",
-        "outDir": "./web/dist/",
+        "outDir": "./web/dist/js",
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
         "strict": true,

@@ -1,4 +1,4 @@
-import { GameEvent } from "./GameEvents.js"
+import { GameEvent } from "./game-events.js"
 
 export interface Subscriber {
     update(event: GameEvent): void;

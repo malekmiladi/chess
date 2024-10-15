@@ -1,5 +1,11 @@
-import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move, toXY } from './Pieces.js'
-import { Notifier } from './Notifier.js'
+import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move } from './pieces.js'
+import { Notifier } from './notifier.js'
+
+export type MoveOperation = {
+    success: boolean;
+    move: Move;
+    take: boolean;
+}
 
 export class Board {
 
@@ -11,6 +17,16 @@ export class Board {
 
     constructor(notifier: Notifier) {
         this.notifier = notifier;
+        this.initiateBoard();
+        this.updateLeglMoves();
+        for (const piece of this.currState) {
+            if (piece) {
+                console.log(piece);
+            }
+        }
+    }
+
+    initiateBoard() {
         this.currState.push(
             new Rook(0, Color.BLACK),
             new Knight(1, Color.BLACK),
@@ -46,6 +62,9 @@ export class Board {
         for (let i: number = 40; i < 48; i++) {
             this.underWhiteAttack[i] = true;
         }
+    }
+
+    updateLeglMoves() {
         for (let i: number = 0; i < 64; i++) {
             const piece = this.currState[i];
             if (piece) {
@@ -63,9 +82,20 @@ export class Board {
         }
     }
 
-    movePiece(move: Move): void {
+    movePiece(move: Move): MoveOperation {
+        let op: MoveOperation = {
+            success: true,
+            move: move,
+            take: false
+        }
         const piece: (Piece | undefined) = this.currState[move.current];
+        const opponentPiece: (Piece | undefined) = this.currState[move.target];
+        console.log(move.target, piece?.legalMoves, piece?.isLegalMove(move.target));
         if (piece?.isLegalMove(move.target)) {
+            if (opponentPiece) {
+                op.take = true;
+                this.takePiece(move.target);
+            }
             this.currState[move.current] = undefined;
             var attackedSquares: number[] = piece.getAttackedSquares();
             for (const index of attackedSquares) {
@@ -84,8 +114,17 @@ export class Board {
                     this.underWhiteAttack[index] = true;
                 }
             }
+            if (piece instanceof Pawn) {
+                if (piece.firstMove) {
+                    piece.firstMove = false;
+                }
+            }
             this.currState[move.target] = piece;
+            this.updateLeglMoves();
+            return op;
         }
+        op.success = false;
+        return op;
     }
 
     takePiece(target: number): void {

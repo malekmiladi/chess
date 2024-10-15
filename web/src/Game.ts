@@ -1,17 +1,35 @@
-import { Board } from "./Board.js";
-import { Notifier, Subscriber } from "./Notifier.js";
+import { Board, MoveOperation } from "./board.js";
+import { DisplayDriver } from "./display-driver.js";
+import { GameEvent, GameEventType } from "./game-events.js";
+import { Notifier, Subscriber } from "./notifier.js";
+import { Move } from "./pieces.js";
 
 export class Game implements Subscriber {
-    chess: HTMLDivElement;
-    board: Board;
+    ctx: HTMLDivElement;
     notifier: Notifier;
-    constructor(chess: HTMLDivElement) {
+    board: Board;
+    displayDriver: DisplayDriver;
+    constructor(ctx: HTMLDivElement) {
+        this.ctx = ctx;
         this.notifier = new Notifier(this);
         this.board = new Board(this.notifier);
-        this.chess = chess;
+        this.displayDriver = new DisplayDriver(ctx, this.notifier);
     }
     run() {
-        console.log(this.board.currState);
+        this.displayDriver.drawBoard();
+        this.displayDriver.drawPieces(this.board);
     }
-    update() {}
+    update(event: GameEvent) {
+        switch (event.type) {
+            case GameEventType.MOVE_PIECE:
+                console.log(event);
+                const moveApplied: MoveOperation = this.board.movePiece(event.move);
+                console.log(moveApplied);
+                if (moveApplied.success) {
+                    this.displayDriver.applyMove(moveApplied);
+                }
+                break;
+
+        }
+    }
 } 

@@ -1,5 +1,5 @@
-import { Game } from "./Game.js";
+import { Game } from "./game.js";
 
-const chess = document.getElementById("chess") as HTMLDivElement;
-const game = new Game(chess);
+const ctx = document.getElementById("game") as HTMLDivElement;
+const game = new Game(ctx);
 game.run();

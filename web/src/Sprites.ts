@@ -1,35 +1,60 @@
 
 export type Sprite = {
-
-    topLeft: number,
-    bottomRight: number,
-    size: number
-
+    svg: string
 }
 
 export const sprites = {
     king: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bK.svg"
+        } as Sprite,
+        white: {
+            svg: "./assets/wK.svg"
+        } as Sprite
     },
     queen: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bQ.svg"
+        } as Sprite,
+        white: {
+            svg: "./assets/wQ.svg"
+        } as Sprite
     },
     bishop: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bB.svg"
+        } as Sprite,
+        white: {
+            svg: "./assets/wB.svg"
+        } as Sprite
     },
     knight: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bN.svg"
+            
+        } as Sprite,
+        white: {
+            svg: "./assets/wN.svg"
+            
+        } as Sprite
     },
     rook: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bR.svg"
+            
+        } as Sprite,
+        white: {
+            svg: "./assets/wR.svg"
+            
+        } as Sprite
     },
     pawn: {
-        black: {} as Sprite,
-        white: {} as Sprite
+        black: {
+            svg: "./assets/bP.svg"
+
+        } as Sprite,
+        white: {
+            svg: "./assets/wP.svg"
+        } as Sprite
     }
 };
