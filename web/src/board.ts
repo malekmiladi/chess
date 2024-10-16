@@ -7,23 +7,30 @@ export type MoveOperation = {
     take: boolean;
 }
 
+export type KingIndex = {
+    wK: number;
+    bK: number;
+}
+
 export class Board {
 
     notifier: Notifier;
-    currState: (Piece | undefined)[] = [];
-    prevStates: (Piece | undefined)[][] = [];
-    underBlackAttack: boolean[] = new Array(64).fill(false);
-    underWhiteAttack: boolean[] = new Array(64).fill(false);
+    currState: (Piece | undefined)[];
+    prevStates: (Piece | undefined)[][];
+    territory: Set<number>[];
+    kings: KingIndex;
 
     constructor(notifier: Notifier) {
+        this.territory = [];
+        this.currState = [];
+        this.prevStates = [];
+        this.kings = {
+            bK: 4,
+            wK: 60
+        }
         this.notifier = notifier;
         this.initiateBoard();
         this.updateLeglMoves();
-        for (const piece of this.currState) {
-            if (piece) {
-                console.log(piece);
-            }
-        }
     }
 
     initiateBoard() {
@@ -56,30 +63,58 @@ export class Board {
             new Knight(62, Color.WHITE),
             new Rook(63, Color.WHITE),
         )
-        for (let i: number = 16; i < 24; i++) {
-            this.underBlackAttack[i] = true;
-        }
-        for (let i: number = 40; i < 48; i++) {
-            this.underWhiteAttack[i] = true;
-        }
+    }
+
+    isUnderAttack(square: number, adversary: Color): boolean {
+        return this.territory[square].has(adversary);
     }
 
     updateLeglMoves() {
+        this.territory = new Array(64).fill(new Set<number>());
+        console.log(this.territory);
         for (let i: number = 0; i < 64; i++) {
             const piece = this.currState[i];
             if (piece) {
-                piece.generateLegalMoves(i, this);
+                if (piece instanceof King) {
+                    if (piece.color == Color.BLACK) {
+                        this.kings.bK = i;
+                    } else {
+                        this.kings.wK = i;
+                    }
+                } else {
+                    piece.generateLegalMoves(i, this);
+                    const attackedSquares: number[] = piece.getAttackedSquares();
+                    for (const square of attackedSquares) {
+                        this.territory[square].add(piece.color);
+                    }
+                }
             }
         }
-    }
-
-    getAttackedSquares(color: Color) {
-        switch(color) {
-            case Color.BLACK:
-                return this.underBlackAttack;
-            case Color.WHITE:
-                return this.underWhiteAttack;
+        const wK = this.currState[this.kings.wK];
+        const bK = this.currState[this.kings.bK];
+        wK?.generateLegalMoves(this.kings.wK, this);
+        bK?.generateLegalMoves(this.kings.bK, this);
+        const wKAttackedSquares = wK?.getAttackedSquares();
+        const bKAttackedSquares = bK?.getAttackedSquares();
+        const intersection = wKAttackedSquares?.filter(
+            (square: number) => bKAttackedSquares?.includes(square)
+        );
+        if (bKAttackedSquares) {
+            for (const square of bKAttackedSquares) {
+                if (!intersection?.includes(square)) {
+                    this.territory[square].add(Color.BLACK);
+                }
+            }
         }
+        if (wKAttackedSquares) {
+            for (const square of wKAttackedSquares) {
+                if (!intersection?.includes(square)) {
+                    this.territory[square].add(Color.WHITE);
+                }
+            }
+        }
+        console.log(this.currState);
+        console.log(this.territory);
     }
 
     movePiece(move: Move): MoveOperation {
@@ -90,33 +125,16 @@ export class Board {
         }
         const piece: (Piece | undefined) = this.currState[move.current];
         const opponentPiece: (Piece | undefined) = this.currState[move.target];
-        console.log(move.target, piece?.legalMoves, piece?.isLegalMove(move.target));
         if (piece?.isLegalMove(move.target)) {
+            this.prevStates.push([...this.currState]);
             if (opponentPiece) {
                 op.take = true;
                 this.takePiece(move.target);
             }
             this.currState[move.current] = undefined;
-            var attackedSquares: number[] = piece.getAttackedSquares();
-            for (const index of attackedSquares) {
-                if (piece.color == Color.BLACK) {
-                    this.underBlackAttack[index] = false;
-                } else {
-                    this.underWhiteAttack[index] = false;
-                }
-            }
-            piece.generateLegalMoves(move.target, this);
-            attackedSquares = piece.getAttackedSquares();
-            for (const index of attackedSquares) {
-                if (piece.color == Color.BLACK) {
-                    this.underBlackAttack[index] = true;
-                } else {
-                    this.underWhiteAttack[index] = true;
-                }
-            }
-            if (piece instanceof Pawn) {
-                if (piece.firstMove) {
-                    piece.firstMove = false;
+            if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
+                if (piece.isFirstMove()) {
+                    piece.setFirstMove(false);
                 }
             }
             this.currState[move.target] = piece;

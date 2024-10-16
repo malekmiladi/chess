@@ -31,10 +31,11 @@ export interface Piece {
 }
 
 export class Pawn implements Piece {
-    firstMove: boolean = true;
-    moveChecks: Step[];
-
+    private firstMove: boolean = true;
+    private attackedSquares: number[] = [];
+    
     id: number;
+    moveChecks: Step[];
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -62,8 +63,16 @@ export class Pawn implements Piece {
         }
     }
 
+    public isFirstMove() {
+        return this.firstMove;
+    }
+
+    public setFirstMove(isFirstMove: boolean) {
+        this.firstMove = isFirstMove;
+    }
+
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this.attackedSquares.concat(this.defendedPieces);
     }
 
     generateLegalMoves(curr: number, board: Board): void {
@@ -72,20 +81,21 @@ export class Pawn implements Piece {
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                const opponent: (Piece | undefined) = board.currState[square];
                 if (step.y != 0) {
-                    if (piece) {
-                        if (piece.color != this.color) {
-                            this.legalMoves.push(index);
+                    this.attackedSquares.push(square);
+                    if (opponent) {
+                        if (opponent.color != this.color) {
+                            this.legalMoves.push(square);
                         } else {
-                            this.defendedPieces.push(index);
+                            this.defendedPieces.push(square);
                         }
                     }
                 } else {
-                    if (!piece) {
-                        if (Math.abs(step.x) == 1 || (Math.abs(step.x) == 2 && this.firstMove)) {
-                            this.legalMoves.push(index);
+                    if (!opponent) {
+                        if ((Math.abs(step.x) == 1) || ((Math.abs(step.x) == 2) && this.firstMove)) {
+                            this.legalMoves.push(square);
                         }
                     }
                 }
@@ -103,14 +113,15 @@ export class King implements Piece {
     id: number;
     moveChecks: Step[] = [
         { x: -1, y: -1 },
+        { x: -1, y: 0 },
         { x: -1, y: 1 },
         { x: 1, y: -1 },
-        { x: 1, y: 1 },
-        { x: -1, y: 0 },
         { x: 1, y: 0 },
+        { x: 1, y: 1 },
         { x: 0, y: -1 },
         { x: 0, y: 1 }
     ];
+    private firstMove: boolean = true;
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -126,6 +137,14 @@ export class King implements Piece {
         }
     }
 
+    public isFirstMove() {
+        return this.firstMove;
+    }
+
+    public setFirstMove(isFirstMove: boolean) {
+        this.firstMove = isFirstMove;
+    }
+
     getAttackedSquares(): number[] {
         return this.legalMoves.concat(this.defendedPieces);
     }
@@ -133,18 +152,17 @@ export class King implements Piece {
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
         const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
-        const attackedSquares: boolean[] = board.getAttackedSquares(adversary);
         const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                if (!attackedSquares[index]) {
-                    const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                if (!board.isUnderAttack(square, adversary)) {
+                    const piece: (Piece | undefined) = board.currState[square];
                     if (!piece || (piece.color != this.color)) {
-                        this.legalMoves.push(index);
+                        this.legalMoves.push(square);
                     } else if (piece.color == this.color) {
-                        this.defendedPieces.push(index);
+                        this.defendedPieces.push(square);
                     }
                 }
             }
@@ -194,20 +212,20 @@ export class Queen implements Piece {
             const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                if (index > -1 && index < 64) {
-                    const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                if (square > -1 && square < 64) {
+                    const piece: (Piece | undefined) = board.currState[square];
                     if (!piece) {
-                        this.legalMoves.push(index);
+                        this.legalMoves.push(square);
                     } else {
                         if (piece.color != this.color) {
-                            this.legalMoves.push(index);
+                            this.legalMoves.push(square);
                         } else {
-                            this.defendedPieces.push(index);
+                            this.defendedPieces.push(square);
                         }
                         stopWalking = true;
                     }
-                    currIndex = index;
+                    currIndex = square;
                 } else {
                     stopWalking = true;
                 }
@@ -262,20 +280,20 @@ export class Bishop implements Piece {
             const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                if (index > -1 && index < 64) {
-                    const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                if (square > -1 && square < 64) {
+                    const piece: (Piece | undefined) = board.currState[square];
                     if (!piece) {
-                        this.legalMoves.push(index);
+                        this.legalMoves.push(square);
                     } else {
                         if (piece.color != this.color) {
-                            this.legalMoves.push(index);
+                            this.legalMoves.push(square);
                         } else {
-                            this.defendedPieces.push(index);
+                            this.defendedPieces.push(square);
                         }
                         stopWalking = true;
                     }
-                    currIndex = index;
+                    currIndex = square;
                 } else {
                     stopWalking = true;
                 }
@@ -334,12 +352,12 @@ export class Knight implements Piece {
             const [x, y]: [number, number] = Utils.toXY(curr);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                const piece: (Piece | undefined) = board.currState[square];
                 if (!piece || (piece.color != this.color)) {
-                    this.legalMoves.push(index);
+                    this.legalMoves.push(square);
                 } else if (piece.color == this.color) {
-                    this.defendedPieces.push(index);
+                    this.defendedPieces.push(square);
                 }
             }
         }
@@ -358,6 +376,7 @@ export class Rook implements Piece {
         { x: 0, y: -1 },
         { x: 0, y: 1 }
     ]
+    private firstMove: boolean = true;
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -373,6 +392,14 @@ export class Rook implements Piece {
         }
     }
 
+    public isFirstMove() {
+        return this.firstMove;
+    }
+
+    public setFirstMove(isFirstMove: boolean) {
+        this.firstMove = isFirstMove;
+    }
+
     getAttackedSquares(): number[] {
         return this.legalMoves.concat(this.defendedPieces);
     }
@@ -384,20 +411,20 @@ export class Rook implements Piece {
             const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
-                const index: number = Utils.toIndex(x1, y1);
-                if (index > -1 && index < 64) {
-                    const piece: (Piece | undefined) = board.currState[index];
+                const square: number = Utils.toIndex(x1, y1);
+                if (square > -1 && square < 64) {
+                    const piece: (Piece | undefined) = board.currState[square];
                     if (!piece) {
-                        this.legalMoves.push(index);
+                        this.legalMoves.push(square);
                     } else {
                         if (piece.color != this.color) {
-                            this.legalMoves.push(index);
+                            this.legalMoves.push(square);
                         } else {
-                            this.defendedPieces.push(index);
+                            this.defendedPieces.push(square);
                         }
                         stopWalking = true;
                     }
-                    currIndex = index;
+                    currIndex = square;
                 } else {
                     stopWalking = true;
                 }

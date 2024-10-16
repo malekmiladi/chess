@@ -26,6 +26,7 @@ export class DisplayDriver {
                 square.classList.add("square");
                 square.setAttribute("x", row.toString());
                 square.setAttribute("y", i.toString());
+                square.setAttribute("index", Utils.toIndex(row, i).toString());
 
                 if (startWithWhite) {
                     if (i % 2 == 0) {
@@ -61,7 +62,10 @@ export class DisplayDriver {
 
     onDrop = (e: Event) => {
         e.stopPropagation();
-        const targetSquare: HTMLElement | null | undefined = <HTMLElement>e.target;
+        let targetSquare: HTMLElement | null | undefined = <HTMLElement>e.target;
+        if (targetSquare.classList.contains("piece")) {
+            targetSquare = targetSquare.parentElement as HTMLDivElement;
+        }
         const [xTarget, yTarget]: [number, number] = Utils.extractXYFromElement(targetSquare);
         const movePieceEvent: GameEvent = {
             type: GameEventType.MOVE_PIECE,
@@ -104,8 +108,6 @@ export class DisplayDriver {
         const [x1, y1]: [number, number] = Utils.toXY(to);
         const fromSuare: HTMLDivElement = boardContainer.children[x].children[y] as HTMLDivElement;
         const toSquare: HTMLDivElement = boardContainer.children[x1].children[y1] as HTMLDivElement;
-        console.log(fromSuare);
-        console.log(toSquare);
         if (op.take) {
             toSquare.firstChild?.remove();
         }

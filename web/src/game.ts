@@ -22,9 +22,7 @@ export class Game implements Subscriber {
     update(event: GameEvent) {
         switch (event.type) {
             case GameEventType.MOVE_PIECE:
-                console.log(event);
                 const moveApplied: MoveOperation = this.board.movePiece(event.move);
-                console.log(moveApplied);
                 if (moveApplied.success) {
                     this.displayDriver.applyMove(moveApplied);
                 }
