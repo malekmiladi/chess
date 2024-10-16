@@ -45,7 +45,6 @@ export class Pawn implements Piece {
         this.color = color;
         if (color === Color.WHITE) {
             this.sprite = sprites.pawn.white;
-
             this.moveChecks = [
                 { x: -1, y: -1 },
                 { x: -1, y: 1 },
@@ -85,7 +84,7 @@ export class Pawn implements Piece {
                     }
                 } else {
                     if (!piece) {
-                        if (step.x == 1 || (step.x == 2 && this.firstMove)) {
+                        if (Math.abs(step.x) == 1 || (Math.abs(step.x) == 2 && this.firstMove)) {
                             this.legalMoves.push(index);
                         }
                     }
@@ -191,8 +190,8 @@ export class Queen implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const index: number = Utils.toIndex(x1, y1);
@@ -259,8 +258,8 @@ export class Bishop implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const index: number = Utils.toIndex(x1, y1);
@@ -381,8 +380,8 @@ export class Rook implements Piece {
     walkPath(start: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
         let currIndex: number = start;
-        const [x, y]: [number, number] = Utils.toXY(currIndex);
         while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(currIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const index: number = Utils.toIndex(x1, y1);

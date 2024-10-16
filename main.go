@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"net/http"
+
+	_ "net/http/pprof"
 )
-import _ "net/http/pprof"
 
 func main() {
-	fmt.Println("hello")
+	fmt.Println("Chess server started!")
 
 	static := http.Dir("web/dist")
 
