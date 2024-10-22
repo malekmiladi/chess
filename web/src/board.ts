@@ -7,9 +7,24 @@ export type MoveOperation = {
     take: boolean;
 }
 
-export type KingIndex = {
-    wK: number;
-    bK: number;
+export type Kings = {
+    b: number;
+    w: number;
+}
+
+export type Rooks = {
+    qs: {
+        b: number;
+        w: number;
+    };
+    ks: {
+        b: number;
+        w: number;
+    }
+}
+
+export type Castles = {
+    
 }
 
 export class Board {
@@ -18,15 +33,26 @@ export class Board {
     currState: (Piece | undefined)[];
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
-    kings: KingIndex;
+    kings: Kings;
+    rooks: Rooks;
 
     constructor(notifier: Notifier) {
         this.territory = [];
         this.currState = [];
         this.prevStates = [];
         this.kings = {
-            bK: 4,
-            wK: 60
+            b: 4,
+            w: 60
+        }
+        this.rooks = {
+            qs: {
+                b: 0,
+                w: 56
+            },
+            ks: {
+                b: 7,
+                w: 63
+            }
         }
         this.notifier = notifier;
         this.initiateBoard();
@@ -63,6 +89,7 @@ export class Board {
             new Knight(62, Color.WHITE),
             new Rook(63, Color.WHITE),
         )
+        console.log(this.currState);
     }
 
     isUnderAttack(square: number, adversary: Color): boolean {
@@ -79,9 +106,9 @@ export class Board {
             if (piece) {
                 if (piece instanceof King) {
                     if (piece.color == Color.BLACK) {
-                        this.kings.bK = i;
+                        this.kings.b = i;
                     } else {
-                        this.kings.wK = i;
+                        this.kings.w = i;
                     }
                 } else {
                     piece.generateLegalMoves(i, this);
@@ -92,10 +119,10 @@ export class Board {
                 }
             }
         }
-        let wK = this.currState[this.kings.wK];
-        let bK = this.currState[this.kings.bK];
-        wK?.generateLegalMoves(this.kings.wK, this);
-        bK?.generateLegalMoves(this.kings.bK, this);
+        let wK = this.currState[this.kings.w];
+        let bK = this.currState[this.kings.b];
+        wK?.generateLegalMoves(this.kings.w, this);
+        bK?.generateLegalMoves(this.kings.b, this);
         const wKAttackedSquares = wK?.getAttackedSquares();
         const bKAttackedSquares = bK?.getAttackedSquares();
         const intersection = wKAttackedSquares?.filter(
@@ -117,30 +144,31 @@ export class Board {
         }
     }
 
-    movePiece(move: Move): MoveOperation {
+    movePiece(move: Move, whitesTurn: boolean): MoveOperation {
         let op: MoveOperation = {
-            success: true,
+            success: false,
             move: move,
             take: false
         }
         const piece: (Piece | undefined) = this.currState[move.from];
-        const opponentPiece: (Piece | undefined) = this.currState[move.to];
-        if (piece?.isLegalMove(move.to)) {
-            this.prevStates.push([...this.currState]);
-            if (opponentPiece) {
-                op.take = true;
-                this.takePiece(move.to);
-            }
-            this.currState[move.from] = undefined;
-            if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
-                if (piece.isFirstMove()) {
-                    piece.setFirstMove(false);
+        if ((piece?.color == Color.WHITE && whitesTurn) || (piece?.color == Color.BLACK && !whitesTurn)) {
+            const opponentPiece: (Piece | undefined) = this.currState[move.to];
+            if (piece?.isLegalMove(move.to)) {
+                this.prevStates.push([...this.currState]);
+                if (opponentPiece) {
+                    op.take = true;
+                    this.takePiece(move.to);
                 }
+                this.currState[move.from] = undefined;
+                if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
+                    if (piece.isFirstMove()) {
+                        piece.setFirstMove(false);
+                    }
+                }
+                this.currState[move.to] = piece;
+                this.updateLeglMoves();
+                op.success = true;
             }
-            this.currState[move.to] = piece;
-            this.updateLeglMoves();
-        } else {
-            op.success = false;
         }
         return op;
     }
