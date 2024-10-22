@@ -118,8 +118,6 @@ export class Board {
     }
 
     movePiece(move: Move): MoveOperation {
-        console.log(this.currState);
-        console.log(this.territory);
         let op: MoveOperation = {
             success: true,
             move: move,
@@ -144,8 +142,6 @@ export class Board {
         } else {
             op.success = false;
         }
-        console.log(this.currState);
-        console.log(this.territory);
         return op;
     }
 

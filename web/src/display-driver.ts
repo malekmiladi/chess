@@ -117,7 +117,6 @@ export class DisplayDriver {
 
     applyMove(op: MoveOperation): void {
         let boardContainer: HTMLDivElement = this.ctx.children[0] as HTMLDivElement;
-        console.log(boardContainer, this.highlightedSquares);
         this.removeHighlight(boardContainer);
         const from: number = op.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
@@ -151,10 +150,12 @@ export class DisplayDriver {
         this.highlightedSquares.forEach((square: number) => {
             const [x, y]: [number, number] = Utils.toXY(square);
             const squareElement: HTMLDivElement = boardContainer.children[x].children[y] as HTMLDivElement;
-            const child = squareElement.firstChild as HTMLSpanElement;
-            if (child?.classList.contains("legal-move")) {
-                console.log(child);
-                squareElement.removeChild(squareElement.firstChild as Node);
+            const children = squareElement.children;
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i] as HTMLSpanElement;
+                if (child?.classList.contains("legal-move")) {
+                    squareElement.removeChild(child as Node);
+                }
             }
         });
 
