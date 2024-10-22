@@ -78,6 +78,7 @@ export class Pawn implements Piece {
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
+        this.attackedSquares = [];
         const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
