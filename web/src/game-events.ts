@@ -21,10 +21,6 @@ export type GameEvent =
         move: Move
     }
     | {
-        type: GameEventType.TAKE_PIECE,
-        target: number
-    }
-    | {
         type: GameEventType.CHECK,
         player: Color
     }

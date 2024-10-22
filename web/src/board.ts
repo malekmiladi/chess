@@ -30,7 +30,7 @@ export type Castles = {
 export class Board {
 
     notifier: Notifier;
-    currState: (Piece | undefined)[];
+    state: (Piece | undefined)[];
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
@@ -38,7 +38,7 @@ export class Board {
 
     constructor(notifier: Notifier) {
         this.territory = [];
-        this.currState = [];
+        this.state = [];
         this.prevStates = [];
         this.kings = {
             b: 4,
@@ -60,7 +60,7 @@ export class Board {
     }
 
     initiateBoard(): void {
-        this.currState.push(
+        this.state.push(
             new Rook(0, Color.BLACK),
             new Knight(1, Color.BLACK),
             new Bishop(2, Color.BLACK),
@@ -71,15 +71,15 @@ export class Board {
             new Rook(7, Color.BLACK),
         )
         for (let i: number = 0; i < 8; i++) {
-            this.currState.push(new Pawn(i + 8, Color.BLACK));
+            this.state.push(new Pawn(i + 8, Color.BLACK));
         }
         for (let i: number = 0; i < 32; i++) {
-            this.currState.push(undefined);
+            this.state.push(undefined);
         }
         for (let i: number = 0; i < 8; i++) {
-            this.currState.push(new Pawn(i + 48, Color.WHITE));
+            this.state.push(new Pawn(i + 48, Color.WHITE));
         }
-        this.currState.push(
+        this.state.push(
             new Rook(56, Color.WHITE),
             new Knight(57, Color.WHITE),
             new Bishop(58, Color.WHITE),
@@ -102,7 +102,7 @@ export class Board {
             this.territory.push(new Set());
         }
         for (let i: number = 0; i < 64; i++) {
-            const piece = this.currState[i];
+            const piece = this.state[i];
             if (piece) {
                 if (piece instanceof King) {
                     if (piece.color == Color.BLACK) {
@@ -119,8 +119,8 @@ export class Board {
                 }
             }
         }
-        let wK = this.currState[this.kings.w];
-        let bK = this.currState[this.kings.b];
+        let wK = this.state[this.kings.w];
+        let bK = this.state[this.kings.b];
         wK?.generateLegalMoves(this.kings.w, this);
         bK?.generateLegalMoves(this.kings.b, this);
         const wKAttackedSquares = wK?.getAttackedSquares();
@@ -150,22 +150,22 @@ export class Board {
             move: move,
             take: false
         }
-        const piece: (Piece | undefined) = this.currState[move.from];
+        const piece: (Piece | undefined) = this.state[move.from];
         if ((piece?.color == Color.WHITE && whitesTurn) || (piece?.color == Color.BLACK && !whitesTurn)) {
-            const opponentPiece: (Piece | undefined) = this.currState[move.to];
+            const opponentPiece: (Piece | undefined) = this.state[move.to];
             if (piece?.isLegalMove(move.to)) {
-                this.prevStates.push([...this.currState]);
+                this.prevStates.push([...this.state]);
                 if (opponentPiece) {
                     op.take = true;
                     this.takePiece(move.to);
                 }
-                this.currState[move.from] = undefined;
+                this.state[move.from] = undefined;
                 if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
                     if (piece.isFirstMove()) {
                         piece.setFirstMove(false);
                     }
                 }
-                this.currState[move.to] = piece;
+                this.state[move.to] = piece;
                 this.updateLeglMoves();
                 op.success = true;
             }
@@ -174,12 +174,12 @@ export class Board {
     }
 
     takePiece(to: number): void {
-        this.currState[to] = undefined;
+        this.state[to] = undefined;
     }
 
     getLegalMoves(square: number): number[] {
         let legalMoves: number[] = [];
-        const piece: (Piece | undefined) = this.currState[square];
+        const piece: (Piece | undefined) = this.state[square];
         if (piece) {
             legalMoves = piece.legalMoves;
         }
@@ -187,7 +187,7 @@ export class Board {
     }
 
     getCurrentState(): (Piece | undefined)[] {
-        return this.currState;
+        return this.state;
     }
 
 }

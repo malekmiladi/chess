@@ -24,16 +24,21 @@ body {
     width: 800px;
 }
 
-img {
-    pointer-events: none;
-}
-
 .piece {
     position: relative;
     z-index: 9;
 }
 
+.piece:hover {
+    cursor: pointer;
+}
+
+.piece:active {
+    cursor: grabbing;
+}
+
 .piece img {
+    pointer-events: none;
     width: 100px;
     height: 100px;
     position: relative;

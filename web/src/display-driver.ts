@@ -55,10 +55,18 @@ export class DisplayDriver {
         const originalSquare: HTMLElement = e.currentTarget as HTMLElement;
         const [x, y]: [number, number] = Utils.extractXYFromElement(originalSquare);
         this.draggedPiece = Utils.toIndex(x, y);
+        (<HTMLElement>e.target).style.cursor = "grabbing";
     }
 
     onDragOver = (e: Event): void => {
         e.preventDefault();
+    }
+
+    onDragEnd = (e: Event): void => {
+        const originalSquare: HTMLElement = e.currentTarget as HTMLElement;
+        const [x, y]: [number, number] = Utils.extractXYFromElement(originalSquare);
+        this.draggedPiece = Utils.toIndex(x, y);
+        (<HTMLElement>e.target).style.cursor = "";
     }
 
     onDrop = (e: Event): void => {
@@ -95,12 +103,14 @@ export class DisplayDriver {
             const square = this.boardContainer.children[x].children[y];
             square.addEventListener("dragstart", this.onDragStart);
             square.addEventListener("dragover", this.onDragOver);
+            square.addEventListener("dragend", this.onDragEnd);
             square.addEventListener("drop", this.onDrop);
             square.addEventListener("click", this.onClick);
             const piece: (Piece | undefined) = state[i];
             if (piece) {
                 let pieceObject = document.createElement("div");
                 pieceObject.classList.add("piece");
+                pieceObject.style.cursor = "";
                 pieceObject.draggable = true;
                 let pieceSprite = document.createElement('img');
                 pieceSprite.setAttribute("type", "image/svg+xml");

@@ -26,7 +26,7 @@ export interface Piece {
     defendedPieces: number[];
 
     getAttackedSquares(): number[];
-    generateLegalMoves(curr: number, board: Board): void;
+    generateLegalMoves(square: number, board: Board): void;
     isLegalMove(to: number): boolean;
 }
 
@@ -75,16 +75,16 @@ export class Pawn implements Piece {
         return this.attackedSquares.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.attackedSquares = [];
-        const [x, y]: [number, number] = Utils.toXY(curr);
+        const [x, y]: [number, number] = Utils.toXY(square);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
-                const opponent: (Piece | undefined) = board.currState[square];
+                const opponent: (Piece | undefined) = board.state[square];
                 if (step.y != 0) {
                     this.attackedSquares.push(square);
                     if (opponent) {
@@ -151,17 +151,17 @@ export class King implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
-        const [x, y]: [number, number] = Utils.toXY(curr);
+        const [x, y]: [number, number] = Utils.toXY(square);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (!board.isUnderAttack(square, adversary)) {
-                    const piece: (Piece | undefined) = board.currState[square];
+                    const piece: (Piece | undefined) = board.state[square];
                     if (!piece || (piece.color != this.color)) {
                         this.legalMoves.push(square);
                     } else if (piece.color == this.color) {
@@ -208,17 +208,17 @@ export class Queen implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(start: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
-        let currIndex: number = start;
+        let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
-        while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
-            const [x, y]: [number, number] = Utils.toXY(currIndex);
+        while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.currState[square];
+                    const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
                         if (!kingInPath) {
                             this.legalMoves.push(square);
@@ -237,7 +237,7 @@ export class Queen implements Piece {
                             this.defendedPieces.push(square);
                         }
                     }
-                    currIndex = square;
+                    squareIndex = square;
                 } else {
                     stopWalking = true;
                 }
@@ -247,11 +247,11 @@ export class Queen implements Piece {
         }
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(curr, step, board);
+            this.walkPath(square, step, board);
         }
     }
 
@@ -287,17 +287,17 @@ export class Bishop implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(start: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
-        let currIndex: number = start;
+        let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
-        while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
-            const [x, y]: [number, number] = Utils.toXY(currIndex);
+        while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.currState[square];
+                    const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
                         if (!kingInPath) {
                             this.legalMoves.push(square);
@@ -316,7 +316,7 @@ export class Bishop implements Piece {
                             this.defendedPieces.push(square);
                         }
                     }
-                    currIndex = square;
+                    squareIndex = square;
                 } else {
                     stopWalking = true;
                 }
@@ -326,11 +326,11 @@ export class Bishop implements Piece {
         }
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(curr, step, board);
+            this.walkPath(square, step, board);
         }
     }
 
@@ -370,15 +370,15 @@ export class Knight implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            const [x, y]: [number, number] = Utils.toXY(curr);
+            const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
-                const piece: (Piece | undefined) = board.currState[square];
+                const piece: (Piece | undefined) = board.state[square];
                 if (!piece || (piece.color != this.color)) {
                     this.legalMoves.push(square);
                 } else if (piece.color == this.color) {
@@ -429,17 +429,17 @@ export class Rook implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(start: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board) {
         let stopWalking: boolean = false;
-        let currIndex: number = start;
+        let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
-        while ((currIndex < 64 && currIndex > -1) && !stopWalking) {
-            const [x, y]: [number, number] = Utils.toXY(currIndex);
+        while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
+            const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.currState[square];
+                    const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
                         if (!kingInPath) {
                             this.legalMoves.push(square);
@@ -458,7 +458,7 @@ export class Rook implements Piece {
                             this.defendedPieces.push(square);
                         }
                     }
-                    currIndex = square;
+                    squareIndex = square;
                 } else {
                     stopWalking = true;
                 }
@@ -468,11 +468,11 @@ export class Rook implements Piece {
         }
     }
 
-    generateLegalMoves(curr: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(curr, step, board);
+            this.walkPath(square, step, board);
         }
     }
 

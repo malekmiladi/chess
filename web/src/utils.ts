@@ -5,8 +5,8 @@ export class Utils {
     static yToRank(y: number): string {
         return (y + 1).toString();
     }
-    static toXY(curr: number): [number, number] {
-        return [Math.floor(curr / 8), curr % 8];
+    static toXY(squareIndex: number): [number, number] {
+        return [Math.floor(squareIndex / 8), squareIndex % 8];
     }
     static toIndex(x: number, y: number) {
         return x * 8 + y;
