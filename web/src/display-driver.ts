@@ -10,16 +10,17 @@ export class DisplayDriver {
     notifier: Notifier;
     draggedPiece: number | null;
     highlightedSquares: number[];
+    boardContainer: HTMLDivElement;
+    
     constructor(ctx: HTMLDivElement, notifier: Notifier) {
         this.ctx = ctx as HTMLDivElement;
+        this.boardContainer = this.ctx.children[0] as HTMLDivElement;
         this.notifier = notifier;
         this.draggedPiece = null;
         this.highlightedSquares = [];
     }
 
     drawBoard(): void {
-        let container = document.createElement("div");
-        container.classList.add("board");
         let row: number = 0;
         while (row < 8) {
             let squareRow = document.createElement('div');
@@ -45,10 +46,9 @@ export class DisplayDriver {
                 }
                 squareRow.appendChild(square);
             }
-            container.appendChild(squareRow);
+            this.boardContainer.appendChild(squareRow);
             row++;
         }
-        this.ctx.appendChild(container);
     }
 
     onDragStart = (e: Event): void => {
@@ -64,8 +64,7 @@ export class DisplayDriver {
 
     onDrop = (e: Event): void => {
         e.stopPropagation();
-        let boardContainer: HTMLDivElement = this.ctx.children[0] as HTMLDivElement;
-        this.removeHighlight(boardContainer);
+        this.removeHighlight();
         let targetSquare: HTMLElement | null | undefined = <HTMLElement>e.target;
         if (targetSquare.classList.contains("piece")) {
             targetSquare = targetSquare.parentElement as HTMLDivElement;
@@ -92,10 +91,9 @@ export class DisplayDriver {
 
 
     drawPieces(board: Board): void {
-        let boardContainer: HTMLDivElement = this.ctx.children[0].cloneNode(true) as HTMLDivElement;
         for (let i: number = 0; i < 64; i++) {
             const [x, y]: [number, number] = Utils.toXY(i);
-            const square = boardContainer.children[x].children[y];
+            const square = this.boardContainer.children[x].children[y];
             square.addEventListener("dragstart", this.onDragStart);
             square.addEventListener("dragover", this.onDragOver);
             square.addEventListener("drop", this.onDrop);
@@ -112,19 +110,17 @@ export class DisplayDriver {
                 square.appendChild(pieceObject);
             }
         }
-        this.ctx.children[0].replaceWith(boardContainer);
     }
 
     applyMove(op: MoveOperation): void {
-        let boardContainer: HTMLDivElement = this.ctx.children[0] as HTMLDivElement;
-        this.removeHighlight(boardContainer);
+        this.removeHighlight();
         const from: number = op.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
-        const fromSuare: HTMLDivElement = boardContainer.children[x].children[y] as HTMLDivElement;
+        const fromSuare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
 
         const to: number = op.move.to;
         const [x1, y1]: [number, number] = Utils.toXY(to);
-        const toSquare: HTMLDivElement = boardContainer.children[x1].children[y1] as HTMLDivElement;
+        const toSquare: HTMLDivElement = this.boardContainer.children[x1].children[y1] as HTMLDivElement;
 
         if (op.take) {
             toSquare.firstChild?.remove();
@@ -134,22 +130,21 @@ export class DisplayDriver {
     }
 
     highlightLegalMoves(legalMoves: number[]): void {
-        let boardContainer: HTMLDivElement = this.ctx.children[0] as HTMLDivElement;
-        this.removeHighlight(boardContainer);
+        this.removeHighlight();
         this.highlightedSquares = legalMoves;
         legalMoves.forEach((square: number) => {
             const [x, y]: [number, number] = Utils.toXY(square);
-            const squareElement: HTMLDivElement = boardContainer.children[x].children[y] as HTMLDivElement;
+            const squareElement: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
             let dot = document.createElement("span");
             dot.classList.add("legal-move");
             squareElement.appendChild(dot);
         });
     }
 
-    removeHighlight(boardContainer: HTMLDivElement): void {
+    removeHighlight(): void {
         this.highlightedSquares.forEach((square: number) => {
             const [x, y]: [number, number] = Utils.toXY(square);
-            const squareElement: HTMLDivElement = boardContainer.children[x].children[y] as HTMLDivElement;
+            const squareElement: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
             const children = squareElement.children;
             for (let i = 0; i < children.length; i++) {
                 const child = children[i] as HTMLSpanElement;

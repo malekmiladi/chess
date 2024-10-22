@@ -97,6 +97,7 @@ export class Board {
     }
 
     updateLeglMoves() {
+        // TODO: add pinned pieces logic, and line of sight on king
         this.territory = [];
         for (let i: number = 0; i < 64; i++) {
             this.territory.push(new Set());

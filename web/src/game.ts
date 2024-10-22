@@ -2,7 +2,6 @@ import { Board, MoveOperation } from "./board.js";
 import { DisplayDriver } from "./display-driver.js";
 import { GameEvent, GameEventType } from "./game-events.js";
 import { Notifier, Subscriber } from "./notifier.js";
-import { Color } from "./pieces.js";
 
 export class Game implements Subscriber {
     ctx: HTMLDivElement;
