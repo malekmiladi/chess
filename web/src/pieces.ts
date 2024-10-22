@@ -8,8 +8,8 @@ export enum Color {
 }
 
 export type Move = {
-    current: number,
-    target: number
+    from: number,
+    to: number
 }
 
 export type Step = {
@@ -27,7 +27,7 @@ export interface Piece {
 
     getAttackedSquares(): number[];
     generateLegalMoves(curr: number, board: Board): void;
-    isLegalMove(target: number): boolean;
+    isLegalMove(to: number): boolean;
 }
 
 export class Pawn implements Piece {
@@ -77,6 +77,7 @@ export class Pawn implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
@@ -103,8 +104,8 @@ export class Pawn implements Piece {
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 
 }
@@ -151,6 +152,7 @@ export class King implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
         const [x, y]: [number, number] = Utils.toXY(curr);
         for (const step of this.moveChecks) {
@@ -169,8 +171,8 @@ export class King implements Piece {
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 }
 
@@ -237,13 +239,14 @@ export class Queen implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 }
 
@@ -305,13 +308,14 @@ export class Bishop implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 }
 
@@ -348,6 +352,7 @@ export class Knight implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         for (const step of this.moveChecks) {
             const [x, y]: [number, number] = Utils.toXY(curr);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
@@ -363,8 +368,8 @@ export class Knight implements Piece {
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 }
 
@@ -436,12 +441,13 @@ export class Rook implements Piece {
 
     generateLegalMoves(curr: number, board: Board): void {
         this.legalMoves = [];
+        this.defendedPieces = [];
         for (const step of this.moveChecks) {
             this.walkPath(curr, step, board);
         }
     }
 
-    isLegalMove(target: number): boolean {
-        return this.legalMoves.includes(target);
+    isLegalMove(to: number): boolean {
+        return this.legalMoves.includes(to);
     }
 }

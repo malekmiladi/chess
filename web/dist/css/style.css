@@ -1,18 +1,20 @@
 * {
-	margin: 0px;
-	box-sizing: border-box;
+    margin: 0px;
+    box-sizing: border-box;
 }
 
 body {
-	background-color: rgb(20, 20, 20);
-	color: white;
-	height: 100svh;
-	position: relative;
+    background-color: rgb(20, 20, 20);
+    color: white;
+    height: 100svh;
+    position: relative;
 }
 
 .board {
-    height: 800px;
-    width: 800px;
+    display: grid;
+    grid-template-columns: repeat(8, 1);
+    grid-template-rows: repeat(8, 1);
+    gap: 0;
 }
 
 .row {
@@ -40,6 +42,8 @@ img {
 
 .square {
     position: relative;
+    align-content: center;
+    text-align: center;
 }
 
 .square, .piece {
@@ -53,4 +57,15 @@ img {
 
 .brown {
     background-color: #CD7F32;
+}
+
+.legal-move {
+    height: 30px;
+    width: 30px;
+    position: absolute;
+    z-index: 10;
+    background-color: #bbb;
+    border-radius: 50%;
+    top: 35%;
+    left: 35%;
 }

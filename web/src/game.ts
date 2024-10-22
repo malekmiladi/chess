@@ -27,7 +27,9 @@ export class Game implements Subscriber {
                     this.displayDriver.applyMove(moveApplied);
                 }
                 break;
-
+            case GameEventType.HIGHLIGHT_LEGAL_MOVES:
+                const legalMoves: number[] = this.board.getLegalMoves(event.square);
+                this.displayDriver.highlightLegalMoves(legalMoves);
         }
     }
 } 
