@@ -52,8 +52,7 @@ export class DisplayDriver {
     }
 
     onDragStart = (e: Event): void => {
-        const pieceObject: HTMLElement = <HTMLElement>e.target;
-        const originalSquare: HTMLElement | null = pieceObject.parentElement;
+        const originalSquare: HTMLElement = e.currentTarget as HTMLElement;
         const [x, y]: [number, number] = Utils.extractXYFromElement(originalSquare);
         this.draggedPiece = Utils.toIndex(x, y);
     }
@@ -81,8 +80,8 @@ export class DisplayDriver {
     }
 
     onClick = (e: Event): void => {
-        const square = e.target as HTMLElement;
-        const [x, y]: [number, number] = Utils.extractXYFromElement(square.parentElement);
+        const square = e.currentTarget as HTMLElement;
+        const [x, y]: [number, number] = Utils.extractXYFromElement(square);
         this.notifier.notify({
             type: GameEventType.HIGHLIGHT_LEGAL_MOVES,
             square: Utils.toIndex(x, y)
@@ -90,7 +89,7 @@ export class DisplayDriver {
     }
 
 
-    drawPieces(board: Board): void {
+    drawPieces(state: (Piece | undefined)[]): void {
         for (let i: number = 0; i < 64; i++) {
             const [x, y]: [number, number] = Utils.toXY(i);
             const square = this.boardContainer.children[x].children[y];
@@ -98,7 +97,7 @@ export class DisplayDriver {
             square.addEventListener("dragover", this.onDragOver);
             square.addEventListener("drop", this.onDrop);
             square.addEventListener("click", this.onClick);
-            const piece: (Piece | undefined) = board.currState[i];
+            const piece: (Piece | undefined) = state[i];
             if (piece) {
                 let pieceObject = document.createElement("div");
                 pieceObject.classList.add("piece");

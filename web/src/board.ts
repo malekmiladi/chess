@@ -59,7 +59,7 @@ export class Board {
         this.updateLeglMoves();
     }
 
-    initiateBoard() {
+    initiateBoard(): void {
         this.currState.push(
             new Rook(0, Color.BLACK),
             new Knight(1, Color.BLACK),
@@ -89,14 +89,13 @@ export class Board {
             new Knight(62, Color.WHITE),
             new Rook(63, Color.WHITE),
         )
-        console.log(this.currState);
     }
 
     isUnderAttack(square: number, adversary: Color): boolean {
         return this.territory[square].has(adversary);
     }
 
-    updateLeglMoves() {
+    updateLeglMoves(): void {
         // TODO: add pinned pieces logic, and line of sight on king
         this.territory = [];
         for (let i: number = 0; i < 64; i++) {
@@ -178,13 +177,17 @@ export class Board {
         this.currState[to] = undefined;
     }
 
-    getLegalMoves(square: number) {
+    getLegalMoves(square: number): number[] {
         let legalMoves: number[] = [];
         const piece: (Piece | undefined) = this.currState[square];
         if (piece) {
             legalMoves = piece.legalMoves;
         }
         return legalMoves;
+    }
+
+    getCurrentState(): (Piece | undefined)[] {
+        return this.currState;
     }
 
 }
