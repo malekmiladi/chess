@@ -134,6 +134,20 @@ export class DisplayDriver {
         if (op.take) {
             toSquare.firstChild?.remove();
         }
+
+        if (op.castle.is) {
+            const castleFrom: number = op.castle.rook;
+            const [castleFromX, castleFromY]: [number, number] = Utils.toXY(castleFrom);
+            const castleFromSquare: HTMLDivElement = this.boardContainer.children[castleFromX].children[castleFromY] as HTMLDivElement;
+            
+            const castleTo: number = op.castle.to; 
+            const [castleToX, castleToY]: [number, number] = Utils.toXY(castleTo);
+            const castleToSquare: HTMLDivElement = this.boardContainer.children[castleToX].children[castleToY] as HTMLDivElement;
+
+            castleToSquare.appendChild(castleFromSquare.firstChild as HTMLDivElement);
+            castleFromSquare.firstChild?.remove();
+        }
+
         toSquare.append(fromSuare.firstChild as HTMLDivElement);
         fromSuare.firstChild?.remove();
     }

@@ -5,26 +5,32 @@ export type MoveOperation = {
     success: boolean;
     move: Move;
     take: boolean;
+    castle: {
+        is: boolean;
+        rook: number;
+        to: number;
+    };
 }
 
+// b: black
+// w: white
 export type Kings = {
     b: number;
     w: number;
 }
 
-export type Rooks = {
+
+// qs: queen side
+// ks: king side
+export type Castles = {
     qs: {
-        b: number;
-        w: number;
+        b: number[],
+        w: number[]
     };
     ks: {
-        b: number;
-        w: number;
+        b: number[],
+        w: number[]
     }
-}
-
-export type Castles = {
-    
 }
 
 export class Board {
@@ -34,7 +40,7 @@ export class Board {
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
-    rooks: Rooks;
+    castles: Castles;
 
     constructor(notifier: Notifier) {
         this.territory = [];
@@ -44,14 +50,14 @@ export class Board {
             b: 4,
             w: 60
         }
-        this.rooks = {
+        this.castles = {
             qs: {
-                b: 0,
-                w: 56
+                b: [0, 4],
+                w: [56, 60]
             },
             ks: {
-                b: 7,
-                w: 63
+                b: [4, 7],
+                w: [60, 63]
             }
         }
         this.notifier = notifier;
@@ -148,7 +154,12 @@ export class Board {
         let op: MoveOperation = {
             success: false,
             move: move,
-            take: false
+            take: false,
+            castle: {
+                is: false,
+                rook: -1,
+                to: -1
+            }
         }
         const piece: (Piece | undefined) = this.state[move.from];
         if ((piece?.color == Color.WHITE && whitesTurn) || (piece?.color == Color.BLACK && !whitesTurn)) {
@@ -165,11 +176,38 @@ export class Board {
                         piece.setFirstMove(false);
                     }
                 }
+                if (piece instanceof King) {
+                    if (Math.abs(move.to - move.from) === 2) {
+                        op.castle.is = true;
+                        switch (move.to) {
+                            case 2:
+                                op.castle.rook = 0;
+                                op.castle.to = 3;
+                                break
+                            case 6:
+                                op.castle.rook = 7;
+                                op.castle.to = 5;
+                                break
+                            case 58:
+                                op.castle.rook = 56;
+                                op.castle.to = 59;
+                                break;
+                            case 62:
+                                op.castle.rook = 63;
+                                op.castle.to = 61;
+                                break;
+                        }
+                        const rook: Piece = <Rook>this.state[op.castle.rook];
+                        this.state[op.castle.rook] = undefined;
+                        this.state[op.castle.to] = rook;
+                    }
+                }
                 this.state[move.to] = piece;
                 this.updateLeglMoves();
                 op.success = true;
             }
         }
+        console.log(this.state);
         return op;
     }
 

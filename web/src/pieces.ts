@@ -33,7 +33,7 @@ export interface Piece {
 export class Pawn implements Piece {
     private firstMove: boolean = true;
     private attackedSquares: number[] = [];
-    
+
     id: number;
     moveChecks: Step[];
     color: Color;
@@ -155,6 +155,61 @@ export class King implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
+    getCastleSquare(rook: (Rook | undefined), boardState: (Piece | undefined)[], start: number, end: number, ks: boolean): number {
+        let pathObstructed: boolean = false;
+        if (rook?.isFirstMove()) {
+            let i: number = start + 1;
+            while (i < end && !pathObstructed) {
+                if (boardState[i] !== undefined) {
+                    pathObstructed = true;
+                }
+                i++;
+            }
+            if (!pathObstructed) {
+                if (ks) {
+                    return end - 1;
+                } else {
+                    return end - 2;
+                }
+            }
+        }
+        return -1;
+    }
+
+    generateCastleMoves(board: Board): number[] {
+        let castleMoves: number[] = [];
+        let [ksStart, ksEnd]: [number, number] = [-1, -1];
+        let [qsStart, qsEnd]: [number, number] = [-1, -1];
+        if (this.firstMove) {
+            switch (this.color) {
+                case Color.BLACK:
+                    [ksStart, ksEnd] = board.castles.ks.b;
+                    [qsStart, qsEnd] = board.castles.qs.b;
+                    break;
+                case Color.WHITE:
+                    [ksStart, ksEnd] = board.castles.ks.w;
+                    [qsStart, qsEnd] = board.castles.qs.w;
+                    break;
+            }
+
+            
+            const ksRook: (Piece | undefined) = board.state[ksEnd];
+            const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, board.state, ksStart, ksEnd, true);
+            if (ksCastleSquare !== -1) {
+                castleMoves.push(ksCastleSquare);
+            }
+
+            const qsRook: (Piece | undefined) = board.state[qsStart];
+            const qsCastleSquare = this.getCastleSquare(<Rook>qsRook, board.state, qsStart, qsEnd, false);
+            if (qsCastleSquare !== -1) {
+                castleMoves.push(qsCastleSquare);
+            }
+        }
+
+        return castleMoves;
+    }
+
+
     generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
@@ -174,6 +229,8 @@ export class King implements Piece {
                 }
             }
         }
+        const castles: number[] = this.generateCastleMoves(board);
+        this.legalMoves = this.legalMoves.concat(castles);
     }
 
     isLegalMove(to: number): boolean {
