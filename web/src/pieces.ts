@@ -79,8 +79,10 @@ export class Pawn implements Piece {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.attackedSquares = [];
+        let pieceOnTheWay: boolean = false;
         const [x, y]: [number, number] = Utils.toXY(square);
-        for (const step of this.moveChecks) {
+        for (let i: number = 0; i < this.moveChecks.length && !pieceOnTheWay; i++) {
+            const step: Step = this.moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds([x1, y1])) {
                 const square: number = Utils.toIndex(x1, y1);
@@ -95,10 +97,12 @@ export class Pawn implements Piece {
                         }
                     }
                 } else {
-                    if (!opponent) {
+                    if (!opponent && !pieceOnTheWay) {
                         if ((Math.abs(step.x) == 1) || ((Math.abs(step.x) == 2) && this.firstMove)) {
                             this.legalMoves.push(square);
                         }
+                    } else {
+                        pieceOnTheWay = true;
                     }
                 }
             }
