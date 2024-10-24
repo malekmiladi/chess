@@ -9,7 +9,7 @@ export enum GameEventType {
     CHECK
 }
 
-export type GameEvent = 
+export type GameEvent =
     | {
         type: GameEventType.NEW_GAME
     }

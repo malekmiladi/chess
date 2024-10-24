@@ -1,15 +1,34 @@
 import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move } from './pieces.js'
 import { Notifier } from './notifier.js'
 
+export enum CastleSide {
+    KING_SIDE,
+    QUEEN_SIDE
+}
+
+export enum MoveType {
+    MOVE,
+    TAKE,
+    CASTLE,
+    EN_PASSANT
+}
+
+export type MoveAction = {
+        move: Move;
+    }
+    | {
+        rook: Move;
+        move: Move;
+    } | {
+        move: Move;
+        opoonent: number;
+    }
+
+
 export type MoveOperation = {
     success: boolean;
-    move: Move;
-    take: boolean;
-    castle: {
-        is: boolean;
-        rook: number;
-        to: number;
-    };
+    type: MoveType;
+    action: MoveAction;
 }
 
 // b: black
@@ -19,48 +38,70 @@ export type Kings = {
     w: number;
 }
 
-
-// qs: queen side
-// ks: king side
-export type Castles = {
-    qs: {
-        b: number[],
-        w: number[]
-    };
-    ks: {
-        b: number[],
-        w: number[]
-    }
-}
-
 export class Board {
+
+    readonly CASTLE_SQUARES = {
+        QS: {
+            B: {
+                FROM: {
+                    KING: 4,
+                    ROOK: 0,
+                },
+                TO: {
+                    KING: 2,
+                    ROOK: 3,
+                }
+            },
+            W: {
+                FROM: {
+                    KING: 60,
+                    ROOK: 56,
+                },
+                TO: {
+                    KING: 58,
+                    ROOK: 59
+                }
+            }
+        },
+        KS: {
+            B: {
+                FROM: {
+                    KING: 4,
+                    ROOK: 7,
+                },
+                TO: {
+                    KING: 6,
+                    ROOK: 5
+                }
+            },
+            W: {
+                FROM: {
+                    KING: 60,
+                    ROOK: 63,
+                },
+                TO: {
+                    KING: 62,
+                    ROOK: 61
+                }
+            }
+        }
+    }
 
     notifier: Notifier;
     state: (Piece | undefined)[];
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
-    castles: Castles;
 
     constructor(notifier: Notifier) {
         this.territory = [];
         this.state = [];
         this.prevStates = [];
-        this.kings = {
-            b: 4,
-            w: 60
-        }
-        this.castles = {
-            qs: {
-                b: [0, 4],
-                w: [56, 60]
-            },
-            ks: {
-                b: [4, 7],
-                w: [60, 63]
-            }
-        }
         this.notifier = notifier;
+        this.kings = {
+            b: this.CASTLE_SQUARES.KS.B.FROM.KING,
+            w: this.CASTLE_SQUARES.KS.W.FROM.KING
+        } as Kings
         this.initiateBoard();
         this.updateLeglMoves();
     }
@@ -125,25 +166,29 @@ export class Board {
                 }
             }
         }
-        let wK = this.state[this.kings.w];
-        let bK = this.state[this.kings.b];
-        wK?.generateLegalMoves(this.kings.w, this);
-        bK?.generateLegalMoves(this.kings.b, this);
-        const wKAttackedSquares = wK?.getAttackedSquares();
-        const bKAttackedSquares = bK?.getAttackedSquares();
-        const intersection = wKAttackedSquares?.filter(
-            (square: number) => bKAttackedSquares?.includes(square)
+
+        let wK = <Rook>this.state[this.kings.w];
+        let bK = <Rook>this.state[this.kings.b];
+
+        wK.generateLegalMoves(this.kings.w, this);
+        bK.generateLegalMoves(this.kings.b, this);
+
+        const wKAttackedSquares = wK.getAttackedSquares();
+        const bKAttackedSquares = bK.getAttackedSquares();
+
+        const intersection = wKAttackedSquares.filter(
+            (square: number) => bKAttackedSquares.includes(square)
         );
         if (bKAttackedSquares) {
             for (const square of bKAttackedSquares) {
-                if (!intersection?.includes(square)) {
+                if (!intersection.includes(square)) {
                     this.territory[square].add(Color.BLACK);
                 }
             }
         }
         if (wKAttackedSquares) {
             for (const square of wKAttackedSquares) {
-                if (!intersection?.includes(square)) {
+                if (!intersection.includes(square)) {
                     this.territory[square].add(Color.WHITE);
                 }
             }
@@ -151,63 +196,90 @@ export class Board {
     }
 
     movePiece(move: Move, whitesTurn: boolean): MoveOperation {
+        // TODO: ugly code -> pretty code
         let op: MoveOperation = {
             success: false,
-            move: move,
-            take: false,
-            castle: {
-                is: false,
-                rook: -1,
-                to: -1
+            type: MoveType.MOVE,
+            action: {
+                move: {
+                    from: -1,
+                    to: -1
+                }
             }
-        }
+        };
+
         const piece: (Piece | undefined) = this.state[move.from];
-        if ((piece?.color == Color.WHITE && whitesTurn) || (piece?.color == Color.BLACK && !whitesTurn)) {
-            const opponentPiece: (Piece | undefined) = this.state[move.to];
-            if (piece?.isLegalMove(move.to)) {
-                this.prevStates.push([...this.state]);
-                if (opponentPiece) {
-                    op.take = true;
-                    this.takePiece(move.to);
-                }
-                this.state[move.from] = undefined;
-                if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
-                    if (piece.isFirstMove()) {
-                        piece.setFirstMove(false);
+        if (piece) {
+            const isWhitesTurn: boolean = piece.color == Color.WHITE && whitesTurn;
+            const isBlacksTurn: boolean = piece.color == Color.BLACK && !whitesTurn;
+            if (isWhitesTurn || isBlacksTurn) {
+                const opponentPiece: (Piece | undefined) = this.state[move.to];
+                if (piece.isLegalMove(move.to)) {
+                    this.prevStates.push([...this.state]);
+                    if (opponentPiece) {
+                        op.type = MoveType.TAKE;
+                        op.action = { move: move } as MoveAction;
+                        this.takePiece(move.to);
                     }
-                }
-                if (piece instanceof King) {
-                    if (Math.abs(move.to - move.from) === 2) {
-                        op.castle.is = true;
-                        switch (move.to) {
-                            case 2:
-                                op.castle.rook = 0;
-                                op.castle.to = 3;
-                                break
-                            case 6:
-                                op.castle.rook = 7;
-                                op.castle.to = 5;
-                                break
-                            case 58:
-                                op.castle.rook = 56;
-                                op.castle.to = 59;
-                                break;
-                            case 62:
-                                op.castle.rook = 63;
-                                op.castle.to = 61;
-                                break;
+                    this.state[move.from] = undefined;
+                    if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
+                        if (piece.isFirstMove()) {
+                            piece.setFirstMove(false);
                         }
-                        const rook: Piece = <Rook>this.state[op.castle.rook];
-                        this.state[op.castle.rook] = undefined;
-                        this.state[op.castle.to] = rook;
                     }
+                    if (piece instanceof King) {
+                        if (Math.abs(move.to - move.from) === 2) {
+                            op.type = MoveType.CASTLE;
+                            switch (move.to) {
+                                case this.CASTLE_SQUARES.QS.B.TO.KING:
+                                    op.action = {
+                                        rook: {
+                                            from: this.CASTLE_SQUARES.QS.B.FROM.ROOK,
+                                            to: this.CASTLE_SQUARES.QS.B.TO.ROOK
+                                        },
+                                        move: move
+                                    } as MoveAction;
+                                    break
+                                case this.CASTLE_SQUARES.KS.B.TO.KING:
+                                    op.action = {
+                                        rook: {
+                                            from: this.CASTLE_SQUARES.KS.B.FROM.ROOK,
+                                            to: this.CASTLE_SQUARES.KS.B.TO.ROOK
+                                        },
+                                        move: move
+                                    } as MoveAction;
+                                    break
+                                case this.CASTLE_SQUARES.QS.W.TO.KING:
+                                    op.action = {
+                                        rook: {
+                                            from: this.CASTLE_SQUARES.QS.W.FROM.ROOK,
+                                            to: this.CASTLE_SQUARES.QS.W.TO.ROOK
+                                        },
+                                        move: move
+                                    } as MoveAction;
+                                    break;
+                                case this.CASTLE_SQUARES.KS.W.TO.KING:
+                                    op.action = {
+                                        rook: {
+                                            from: this.CASTLE_SQUARES.KS.W.FROM.ROOK,
+                                            to: this.CASTLE_SQUARES.KS.W.TO.ROOK
+                                        },
+                                        move: move
+                                    } as MoveAction;
+                                    break;
+                            }
+                            const action = <{ rook: Move; move: Move; }>op.action;
+                            const rook: Piece = <Rook>this.state[action.rook.from];
+                            this.state[action.rook.from] = undefined;
+                            this.state[action.rook.to] = rook;
+                        }
+                    }
+                    this.state[move.to] = piece;
+                    this.updateLeglMoves();
+                    op.success = true;
                 }
-                this.state[move.to] = piece;
-                this.updateLeglMoves();
-                op.success = true;
             }
         }
-        console.log(this.state);
         return op;
     }
 
@@ -226,6 +298,23 @@ export class Board {
 
     getCurrentState(): (Piece | undefined)[] {
         return this.state;
+    }
+
+    getCastleRange(color: Color, side: CastleSide): [number, number] {
+        switch (color) {
+            case Color.BLACK:
+                if (side === CastleSide.KING_SIDE) {
+                    return [this.CASTLE_SQUARES.KS.B.FROM.KING, this.CASTLE_SQUARES.KS.B.FROM.ROOK];
+                } else {
+                    return [this.CASTLE_SQUARES.QS.B.FROM.ROOK, this.CASTLE_SQUARES.QS.B.FROM.KING];
+                }
+            case Color.WHITE:
+                if (side === CastleSide.KING_SIDE) {
+                    return [this.CASTLE_SQUARES.KS.W.FROM.KING, this.CASTLE_SQUARES.KS.W.FROM.ROOK];
+                } else {
+                    return [this.CASTLE_SQUARES.QS.W.FROM.ROOK, this.CASTLE_SQUARES.QS.W.FROM.KING];
+                }
+        }
     }
 
 }

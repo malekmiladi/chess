@@ -1,4 +1,4 @@
-import { Board } from "./board.js";
+import { Board, CastleSide } from "./board.js";
 import { sprites, Sprite } from "./sprites.js";
 import { Utils } from "./utils.js";
 
@@ -181,18 +181,10 @@ export class King implements Piece {
         let [ksStart, ksEnd]: [number, number] = [-1, -1];
         let [qsStart, qsEnd]: [number, number] = [-1, -1];
         if (this.firstMove) {
-            switch (this.color) {
-                case Color.BLACK:
-                    [ksStart, ksEnd] = board.castles.ks.b;
-                    [qsStart, qsEnd] = board.castles.qs.b;
-                    break;
-                case Color.WHITE:
-                    [ksStart, ksEnd] = board.castles.ks.w;
-                    [qsStart, qsEnd] = board.castles.qs.w;
-                    break;
-            }
-
             
+            [ksStart, ksEnd] = board.getCastleRange(this.color, CastleSide.KING_SIDE);
+            [qsStart, qsEnd] = board.getCastleRange(this.color, CastleSide.QUEEN_SIDE);
+
             const ksRook: (Piece | undefined) = board.state[ksEnd];
             const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, board.state, ksStart, ksEnd, true);
             if (ksCastleSquare !== -1) {

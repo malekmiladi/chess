@@ -1,7 +1,7 @@
 export class Utils {
     static xToFile(x: number): string {
         return 'a' + x;
-    } 
+    }
     static yToRank(y: number): string {
         return (y + 1).toString();
     }

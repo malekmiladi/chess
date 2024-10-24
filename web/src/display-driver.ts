@@ -1,17 +1,17 @@
-import { Board, MoveOperation } from "./board.js";
+import { Board, MoveAction, MoveOperation, MoveType } from "./board.js";
 import { GameEvent, GameEventType } from "./game-events.js";
 import { Notifier } from "./notifier.js";
 import { Move, Piece } from "./pieces.js";
 import { Utils } from "./utils.js";
 
 export class DisplayDriver {
-    
+
     ctx: HTMLDivElement;
     notifier: Notifier;
     draggedPiece: number | null;
     highlightedSquares: number[];
     boardContainer: HTMLDivElement;
-    
+
     constructor(ctx: HTMLDivElement, notifier: Notifier) {
         this.ctx = ctx as HTMLDivElement;
         this.boardContainer = this.ctx.children[0] as HTMLDivElement;
@@ -123,24 +123,40 @@ export class DisplayDriver {
 
     applyMove(op: MoveOperation): void {
         this.removeHighlight();
-        const from: number = op.move.from;
+        let action: MoveAction;
+        switch (op.type) {
+            case MoveType.TAKE, MoveType.MOVE:
+                action = <{ move: Move }>op.action;
+                break;
+            case MoveType.CASTLE:
+                action = <{ move: Move, rook: Move }>op.action;
+                break;
+            case MoveType.EN_PASSANT:
+                action = <{ move: Move, opponent: number }>op.action;
+                break;
+            default:
+                action = <{ move: Move }>op.action;
+                break;
+        }
+        const from: number = action.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
         const fromSuare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
 
-        const to: number = op.move.to;
+        const to: number = action.move.to;
         const [x1, y1]: [number, number] = Utils.toXY(to);
         const toSquare: HTMLDivElement = this.boardContainer.children[x1].children[y1] as HTMLDivElement;
 
-        if (op.take) {
+        if (op.type === MoveType.TAKE) {
             toSquare.firstChild?.remove();
         }
 
-        if (op.castle.is) {
-            const castleFrom: number = op.castle.rook;
+        // TODO: find better attr than "is" & find how to avoid repetitive code
+        if (op.type === MoveType.CASTLE) {
+            const castleFrom: number = (<{ move: Move, rook: Move }>action).rook.from;
             const [castleFromX, castleFromY]: [number, number] = Utils.toXY(castleFrom);
             const castleFromSquare: HTMLDivElement = this.boardContainer.children[castleFromX].children[castleFromY] as HTMLDivElement;
-            
-            const castleTo: number = op.castle.to; 
+
+            const castleTo: number = (<{ move: Move, rook: Move }>action).rook.to;
             const [castleToX, castleToY]: [number, number] = Utils.toXY(castleTo);
             const castleToSquare: HTMLDivElement = this.boardContainer.children[castleToX].children[castleToY] as HTMLDivElement;
 

@@ -23,7 +23,7 @@ export class Game implements Subscriber {
         this.displayDriver.drawBoard();
         this.displayDriver.drawPieces(this.board.getCurrentState());
     }
-    
+
     update(event: GameEvent) {
         switch (event.type) {
             case GameEventType.MOVE_PIECE:
