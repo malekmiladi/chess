@@ -1,6 +1,6 @@
-import { Board, CastleSide } from "./board.js";
-import { sprites, Sprite } from "./sprites.js";
-import { Utils } from "./utils.js";
+import {Board, CastleSide} from "./board.js";
+import {sprites, Sprite} from "./sprites.js";
+import {Utils} from "./utils.js";
 
 export enum Color {
     WHITE = 1,
@@ -26,13 +26,20 @@ export interface Piece {
     defendedPieces: number[];
 
     getAttackedSquares(): number[];
+
     generateLegalMoves(square: number, board: Board): void;
+
     isLegalMove(to: number): boolean;
 }
 
 export class Pawn implements Piece {
     private firstMove: boolean = true;
+    private enPassant: boolean = false;
     private attackedSquares: number[] = [];
+    private enPassantChecks: Step[] = [
+        {x: 0, y: 1},
+        {x: 0, y: -1}
+    ];
 
     id: number;
     moveChecks: Step[];
@@ -47,28 +54,36 @@ export class Pawn implements Piece {
         if (color === Color.WHITE) {
             this.sprite = sprites.pawn.white;
             this.moveChecks = [
-                { x: -1, y: -1 },
-                { x: -1, y: 1 },
-                { x: -1, y: 0 },
-                { x: -2, y: 0 }
+                {x: -1, y: -1},
+                {x: -1, y: 1},
+                {x: -1, y: 0},
+                {x: -2, y: 0}
             ]
         } else {
             this.sprite = sprites.pawn.black;
             this.moveChecks = [
-                { x: 1, y: -1 },
-                { x: 1, y: 1 },
-                { x: 1, y: 0 },
-                { x: 2, y: 0 }
+                {x: 1, y: -1},
+                {x: 1, y: 1},
+                {x: 1, y: 0},
+                {x: 2, y: 0}
             ]
         }
     }
 
-    public isFirstMove() {
+    isFirstMove() {
         return this.firstMove;
     }
 
-    public setFirstMove(isFirstMove: boolean) {
+    setFirstMove(isFirstMove: boolean) {
         this.firstMove = isFirstMove;
+    }
+
+    isEnPassant(): boolean {
+        return this.enPassant;
+    }
+
+    public setEnPassant(enPassant: boolean): void {
+        this.enPassant = enPassant;
     }
 
     getAttackedSquares(): number[] {
@@ -84,25 +99,45 @@ export class Pawn implements Piece {
         for (let i: number = 0; i < this.moveChecks.length && !pieceOnTheWay; i++) {
             const step: Step = this.moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
-                const opponent: (Piece | undefined) = board.state[square];
+                const otherPiece: (Piece | undefined) = board.state[square];
                 if (step.y != 0) {
                     this.attackedSquares.push(square);
-                    if (opponent) {
-                        if (opponent.color != this.color) {
+                    if (otherPiece) {
+                        if (otherPiece.color != this.color) {
                             this.legalMoves.push(square);
                         } else {
                             this.defendedPieces.push(square);
                         }
                     }
                 } else {
-                    if (!opponent && !pieceOnTheWay) {
+                    if (!otherPiece && !pieceOnTheWay) {
                         if ((Math.abs(step.x) == 1) || ((Math.abs(step.x) == 2) && this.firstMove)) {
                             this.legalMoves.push(square);
                         }
                     } else {
                         pieceOnTheWay = true;
+                    }
+                }
+            }
+        }
+        for (const step of this.enPassantChecks) {
+            const [x1, y1]: [number, number] = [x + step.x, y + step.y];
+            if (Utils.xyWithingBounds(x1, y1)) {
+                const square: number = Utils.toIndex(x1, y1);
+                const otherPiece: (Piece | undefined) = board.state[square];
+                if (otherPiece) {
+                    const isOpponent = otherPiece.color != this.color;
+                    const isPawn = otherPiece instanceof Pawn;
+                    if (isOpponent) {
+                        if (isPawn) {
+                            if (otherPiece.isEnPassant()) {
+                                const xIncrement = this.color === Color.BLACK ? 1 : -1;
+                                const enPassantSquare = Utils.toIndex(x1 + xIncrement, y1);
+                                this.legalMoves.push(enPassantSquare);
+                            }
+                        }
                     }
                 }
             }
@@ -118,14 +153,14 @@ export class Pawn implements Piece {
 export class King implements Piece {
     id: number;
     moveChecks: Step[] = [
-        { x: -1, y: -1 },
-        { x: -1, y: 0 },
-        { x: -1, y: 1 },
-        { x: 1, y: -1 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-        { x: 0, y: -1 },
-        { x: 0, y: 1 }
+        {x: -1, y: -1},
+        {x: -1, y: 0},
+        {x: -1, y: 1},
+        {x: 1, y: -1},
+        {x: 1, y: 0},
+        {x: 1, y: 1},
+        {x: 0, y: -1},
+        {x: 0, y: 1}
     ];
     private firstMove: boolean = true;
     color: Color;
@@ -181,7 +216,7 @@ export class King implements Piece {
         let [ksStart, ksEnd]: [number, number] = [-1, -1];
         let [qsStart, qsEnd]: [number, number] = [-1, -1];
         if (this.firstMove) {
-            
+
             [ksStart, ksEnd] = board.getCastleRange(this.color, CastleSide.KING_SIDE);
             [qsStart, qsEnd] = board.getCastleRange(this.color, CastleSide.QUEEN_SIDE);
 
@@ -209,7 +244,7 @@ export class King implements Piece {
         const [x, y]: [number, number] = Utils.toXY(square);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (!board.isUnderAttack(square, adversary)) {
                     const piece: (Piece | undefined) = board.state[square];
@@ -233,14 +268,14 @@ export class King implements Piece {
 export class Queen implements Piece {
     id: number;
     moveChecks: Step[] = [
-        { x: -1, y: -1 },
-        { x: -1, y: 1 },
-        { x: 1, y: -1 },
-        { x: 1, y: 1 },
-        { x: -1, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: -1 },
-        { x: 0, y: 1 }
+        {x: -1, y: -1},
+        {x: -1, y: 1},
+        {x: 1, y: -1},
+        {x: 1, y: 1},
+        {x: -1, y: 0},
+        {x: 1, y: 0},
+        {x: 0, y: -1},
+        {x: 0, y: 1}
     ];
     color: Color;
     sprite: Sprite;
@@ -268,7 +303,7 @@ export class Queen implements Piece {
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];
@@ -316,10 +351,10 @@ export class Queen implements Piece {
 export class Bishop implements Piece {
     id: number;
     moveChecks: Step[] = [
-        { x: -1, y: -1 },
-        { x: -1, y: 1 },
-        { x: 1, y: -1 },
-        { x: 1, y: 1 }
+        {x: -1, y: -1},
+        {x: -1, y: 1},
+        {x: 1, y: -1},
+        {x: 1, y: 1}
     ];
     color: Color;
     sprite: Sprite;
@@ -347,7 +382,7 @@ export class Bishop implements Piece {
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];
@@ -395,14 +430,14 @@ export class Bishop implements Piece {
 export class Knight implements Piece {
     id: number;
     moveChecks: Step[] = [
-        { x: -1, y: -2 },
-        { x: -1, y: 2 },
-        { x: -2, y: -1 },
-        { x: -2, y: 1 },
-        { x: 1, y: -2 },
-        { x: 1, y: 2 },
-        { x: 2, y: -1 },
-        { x: 2, y: 1 }
+        {x: -1, y: -2},
+        {x: -1, y: 2},
+        {x: -2, y: -1},
+        {x: -2, y: 1},
+        {x: 1, y: -2},
+        {x: 1, y: 2},
+        {x: 2, y: -1},
+        {x: 2, y: 1}
     ];
     color: Color;
     sprite: Sprite;
@@ -429,7 +464,7 @@ export class Knight implements Piece {
         for (const step of this.moveChecks) {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
                 if (!piece || (piece.color != this.color)) {
@@ -449,10 +484,10 @@ export class Knight implements Piece {
 export class Rook implements Piece {
     id: number;
     moveChecks: Step[] = [
-        { x: -1, y: 0 },
-        { x: 1, y: 0 },
-        { x: 0, y: -1 },
-        { x: 0, y: 1 }
+        {x: -1, y: 0},
+        {x: 1, y: 0},
+        {x: 0, y: -1},
+        {x: 0, y: 1}
     ]
     private firstMove: boolean = true;
     color: Color;
@@ -489,7 +524,7 @@ export class Rook implements Piece {
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
-            if (Utils.xyWithingBounds([x1, y1])) {
+            if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];

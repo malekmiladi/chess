@@ -1,8 +1,8 @@
-import { Board, MoveAction, MoveOperation, MoveType } from "./board.js";
-import { GameEvent, GameEventType } from "./game-events.js";
-import { Notifier } from "./notifier.js";
-import { Move, Piece } from "./pieces.js";
-import { Utils } from "./utils.js";
+import {CastleMove, EnPassantMove, MoveAction, MoveOperation, MoveType, NormalMove} from "./board.js";
+import {GameEvent, GameEventType} from "./game-events.js";
+import {Notifier} from "./notifier.js";
+import {Move, Piece} from "./pieces.js";
+import {Utils} from "./utils.js";
 
 export class DisplayDriver {
 
@@ -125,22 +125,23 @@ export class DisplayDriver {
         this.removeHighlight();
         let action: MoveAction;
         switch (op.type) {
-            case MoveType.TAKE, MoveType.MOVE:
-                action = <{ move: Move }>op.action;
+            case MoveType.TAKE:
+            case MoveType.MOVE:
+                action = <NormalMove>op.action;
                 break;
             case MoveType.CASTLE:
-                action = <{ move: Move, rook: Move }>op.action;
+                action = <CastleMove>op.action;
                 break;
             case MoveType.EN_PASSANT:
-                action = <{ move: Move, opponent: number }>op.action;
+                action = <EnPassantMove>op.action;
                 break;
             default:
-                action = <{ move: Move }>op.action;
+                action = <NormalMove>op.action;
                 break;
         }
         const from: number = action.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
-        const fromSuare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
+        const fromSquare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
 
         const to: number = action.move.to;
         const [x1, y1]: [number, number] = Utils.toXY(to);
@@ -152,11 +153,11 @@ export class DisplayDriver {
 
         // TODO: find better attr than "is" & find how to avoid repetitive code
         if (op.type === MoveType.CASTLE) {
-            const castleFrom: number = (<{ move: Move, rook: Move }>action).rook.from;
+            const castleFrom: number = (<CastleMove>action).rook.from;
             const [castleFromX, castleFromY]: [number, number] = Utils.toXY(castleFrom);
             const castleFromSquare: HTMLDivElement = this.boardContainer.children[castleFromX].children[castleFromY] as HTMLDivElement;
 
-            const castleTo: number = (<{ move: Move, rook: Move }>action).rook.to;
+            const castleTo: number = (<CastleMove>action).rook.to;
             const [castleToX, castleToY]: [number, number] = Utils.toXY(castleTo);
             const castleToSquare: HTMLDivElement = this.boardContainer.children[castleToX].children[castleToY] as HTMLDivElement;
 
@@ -164,8 +165,15 @@ export class DisplayDriver {
             castleFromSquare.firstChild?.remove();
         }
 
-        toSquare.append(fromSuare.firstChild as HTMLDivElement);
-        fromSuare.firstChild?.remove();
+        if (op.type === MoveType.EN_PASSANT) {
+            const opponentPiece: number = (<EnPassantMove>action).opponent;
+            const [opponentX, opponentY]: [number, number] = Utils.toXY(opponentPiece);
+            const opponentSquare: HTMLDivElement = this.boardContainer.children[opponentX].children[opponentY] as HTMLDivElement;
+            opponentSquare.firstChild?.remove();
+        }
+
+        toSquare.append(fromSquare.firstChild as HTMLDivElement);
+        fromSquare.firstChild?.remove();
     }
 
     highlightLegalMoves(legalMoves: number[]): void {

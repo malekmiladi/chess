@@ -1,5 +1,6 @@
-import { Color, Piece, Pawn, Rook, Bishop, Knight, King, Queen, Move } from './pieces.js'
-import { Notifier } from './notifier.js'
+import {Bishop, Color, King, Knight, Move, Pawn, Piece, Queen, Rook} from './pieces.js'
+import {Notifier} from './notifier.js'
+import {Utils} from "./utils.js";
 
 export enum CastleSide {
     KING_SIDE,
@@ -13,16 +14,21 @@ export enum MoveType {
     EN_PASSANT
 }
 
-export type MoveAction = {
-        move: Move;
-    }
-    | {
-        rook: Move;
-        move: Move;
-    } | {
-        move: Move;
-        opoonent: number;
-    }
+export type NormalMove = {
+    move: Move
+};
+
+export type CastleMove = {
+    rook: Move;
+    move: Move;
+};
+
+export type EnPassantMove = {
+    move: Move;
+    opponent: number;
+}
+
+export type MoveAction = NormalMove | CastleMove | EnPassantMove;
 
 
 export type MoveOperation = {
@@ -43,45 +49,45 @@ export class Board {
     readonly CASTLE_SQUARES = {
         QS: {
             B: {
-                FROM: {
-                    KING: 4,
-                    ROOK: 0,
+                KING: {
+                    FROM: 4,
+                    TO: 2
                 },
-                TO: {
-                    KING: 2,
-                    ROOK: 3,
+                ROOK: {
+                    FROM: 0,
+                    TO: 3
                 }
             },
             W: {
-                FROM: {
-                    KING: 60,
-                    ROOK: 56,
+                KING: {
+                    FROM: 60,
+                    TO: 58
                 },
-                TO: {
-                    KING: 58,
-                    ROOK: 59
+                ROOK: {
+                    FROM: 56,
+                    TO: 59
                 }
             }
         },
         KS: {
             B: {
-                FROM: {
-                    KING: 4,
-                    ROOK: 7,
+                KING: {
+                    FROM: 4,
+                    TO: 6
                 },
-                TO: {
-                    KING: 6,
-                    ROOK: 5
+                ROOK: {
+                    FROM: 7,
+                    TO: 5
                 }
             },
             W: {
-                FROM: {
-                    KING: 60,
-                    ROOK: 63,
+                KING: {
+                    FROM: 60,
+                    TO: 62
                 },
-                TO: {
-                    KING: 62,
-                    ROOK: 61
+                ROOK: {
+                    FROM: 63,
+                    TO: 61
                 }
             }
         }
@@ -99,11 +105,11 @@ export class Board {
         this.prevStates = [];
         this.notifier = notifier;
         this.kings = {
-            b: this.CASTLE_SQUARES.KS.B.FROM.KING,
-            w: this.CASTLE_SQUARES.KS.W.FROM.KING
+            b: this.CASTLE_SQUARES.KS.B.KING.FROM,
+            w: this.CASTLE_SQUARES.KS.W.KING.FROM
         } as Kings
         this.initiateBoard();
-        this.updateLeglMoves();
+        this.updateLegalMoves(null);
     }
 
     initiateBoard(): void {
@@ -142,7 +148,7 @@ export class Board {
         return this.territory[square].has(adversary);
     }
 
-    updateLeglMoves(): void {
+    updateLegalMoves(ignoreEnPassantFor: number | null): void {
         // TODO: add pinned pieces logic, and line of sight on king
         this.territory = [];
         for (let i: number = 0; i < 64; i++) {
@@ -158,6 +164,11 @@ export class Board {
                         this.kings.w = i;
                     }
                 } else {
+                    if (piece instanceof Pawn) {
+                        if ((i !== ignoreEnPassantFor) && piece.isEnPassant()) {
+                            piece.setEnPassant(false);
+                        }
+                    }
                     piece.generateLegalMoves(i, this);
                     const attackedSquares: number[] = piece.getAttackedSquares();
                     for (const square of attackedSquares) {
@@ -167,8 +178,8 @@ export class Board {
             }
         }
 
-        let wK = <Rook>this.state[this.kings.w];
-        let bK = <Rook>this.state[this.kings.b];
+        let wK = <King>this.state[this.kings.w];
+        let bK = <King>this.state[this.kings.b];
 
         wK.generateLegalMoves(this.kings.w, this);
         bK.generateLegalMoves(this.kings.b, this);
@@ -179,107 +190,143 @@ export class Board {
         const intersection = wKAttackedSquares.filter(
             (square: number) => bKAttackedSquares.includes(square)
         );
-        if (bKAttackedSquares) {
-            for (const square of bKAttackedSquares) {
-                if (!intersection.includes(square)) {
-                    this.territory[square].add(Color.BLACK);
-                }
+
+        for (const square of bKAttackedSquares) {
+            if (!intersection.includes(square)) {
+                this.territory[square].add(Color.BLACK);
             }
         }
-        if (wKAttackedSquares) {
-            for (const square of wKAttackedSquares) {
-                if (!intersection.includes(square)) {
-                    this.territory[square].add(Color.WHITE);
-                }
+
+        for (const square of wKAttackedSquares) {
+            if (!intersection.includes(square)) {
+                this.territory[square].add(Color.WHITE);
             }
         }
     }
 
+    determineMoveType(piece: Piece, opponentPiece: (Piece | undefined), move: Move): MoveType {
+        const [xFrom, yFrom] = Utils.toXY(move.from);
+        const [xTo, yTo] = Utils.toXY(move.to);
+
+        switch (piece.constructor) {
+            case King:
+                if (Math.abs(move.to - move.from) === 2) {
+                    return MoveType.CASTLE;
+                }
+                break;
+            case Pawn:
+                if (!opponentPiece && (yFrom !== yTo)) {
+                    return MoveType.EN_PASSANT;
+                }
+                break;
+        }
+
+        if (opponentPiece) {
+            return MoveType.TAKE;
+        }
+
+        return MoveType.MOVE;
+    }
+
     movePiece(move: Move, whitesTurn: boolean): MoveOperation {
-        // TODO: ugly code -> pretty code
         let op: MoveOperation = {
             success: false,
             type: MoveType.MOVE,
             action: {
-                move: {
-                    from: -1,
-                    to: -1
-                }
+                move: move
             }
         };
 
         const piece: (Piece | undefined) = this.state[move.from];
-        if (piece) {
+        const opponentPiece: (Piece | undefined) = this.state[move.to];
+
+        if (piece && piece.isLegalMove(move.to)) {
             const isWhitesTurn: boolean = piece.color == Color.WHITE && whitesTurn;
             const isBlacksTurn: boolean = piece.color == Color.BLACK && !whitesTurn;
             if (isWhitesTurn || isBlacksTurn) {
-                const opponentPiece: (Piece | undefined) = this.state[move.to];
-                if (piece.isLegalMove(move.to)) {
-                    this.prevStates.push([...this.state]);
-                    if (opponentPiece) {
-                        op.type = MoveType.TAKE;
-                        op.action = { move: move } as MoveAction;
+                const [xFrom, yFrom] = Utils.toXY(move.from);
+                const [xTo, yTo] = Utils.toXY(move.to);
+                this.prevStates.push([...this.state]);
+                op.type = this.determineMoveType(piece, opponentPiece, move);
+                let newEnPassant: number | null = null;
+                switch (op.type) {
+                    case MoveType.TAKE: {
                         this.takePiece(move.to);
+                        break;
                     }
-                    this.state[move.from] = undefined;
-                    if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
-                        if (piece.isFirstMove()) {
-                            piece.setFirstMove(false);
+                    case MoveType.CASTLE: {
+                        switch (move.to) {
+                            case this.CASTLE_SQUARES.QS.B.KING.TO:
+                                op.action = {
+                                    rook: {
+                                        from: this.CASTLE_SQUARES.QS.B.ROOK.FROM,
+                                        to: this.CASTLE_SQUARES.QS.B.ROOK.TO
+                                    },
+                                    move: move
+                                };
+                                break
+                            case this.CASTLE_SQUARES.KS.B.KING.TO:
+                                op.action = {
+                                    rook: {
+                                        from: this.CASTLE_SQUARES.KS.B.ROOK.FROM,
+                                        to: this.CASTLE_SQUARES.KS.B.ROOK.TO
+                                    },
+                                    move: move
+                                };
+                                break
+                            case this.CASTLE_SQUARES.QS.W.KING.TO:
+                                op.action = {
+                                    rook: {
+                                        from: this.CASTLE_SQUARES.QS.W.ROOK.FROM,
+                                        to: this.CASTLE_SQUARES.QS.W.ROOK.TO
+                                    },
+                                    move: move
+                                };
+                                break;
+                            case this.CASTLE_SQUARES.KS.W.KING.TO:
+                                op.action = {
+                                    rook: {
+                                        from: this.CASTLE_SQUARES.KS.W.ROOK.FROM,
+                                        to: this.CASTLE_SQUARES.KS.W.ROOK.TO
+                                    },
+                                    move: move
+                                };
+                                break;
                         }
+                        const action = <CastleMove>op.action;
+                        const rook: Rook = <Rook>this.state[action.rook.from];
+                        this.state[action.rook.from] = undefined;
+                        this.state[action.rook.to] = rook;
+                        break;
                     }
-                    if (piece instanceof King) {
-                        if (Math.abs(move.to - move.from) === 2) {
-                            op.type = MoveType.CASTLE;
-                            switch (move.to) {
-                                case this.CASTLE_SQUARES.QS.B.TO.KING:
-                                    op.action = {
-                                        rook: {
-                                            from: this.CASTLE_SQUARES.QS.B.FROM.ROOK,
-                                            to: this.CASTLE_SQUARES.QS.B.TO.ROOK
-                                        },
-                                        move: move
-                                    } as MoveAction;
-                                    break
-                                case this.CASTLE_SQUARES.KS.B.TO.KING:
-                                    op.action = {
-                                        rook: {
-                                            from: this.CASTLE_SQUARES.KS.B.FROM.ROOK,
-                                            to: this.CASTLE_SQUARES.KS.B.TO.ROOK
-                                        },
-                                        move: move
-                                    } as MoveAction;
-                                    break
-                                case this.CASTLE_SQUARES.QS.W.TO.KING:
-                                    op.action = {
-                                        rook: {
-                                            from: this.CASTLE_SQUARES.QS.W.FROM.ROOK,
-                                            to: this.CASTLE_SQUARES.QS.W.TO.ROOK
-                                        },
-                                        move: move
-                                    } as MoveAction;
-                                    break;
-                                case this.CASTLE_SQUARES.KS.W.TO.KING:
-                                    op.action = {
-                                        rook: {
-                                            from: this.CASTLE_SQUARES.KS.W.FROM.ROOK,
-                                            to: this.CASTLE_SQUARES.KS.W.TO.ROOK
-                                        },
-                                        move: move
-                                    } as MoveAction;
-                                    break;
-                            }
-                            const action = <{ rook: Move; move: Move; }>op.action;
-                            const rook: Piece = <Rook>this.state[action.rook.from];
-                            this.state[action.rook.from] = undefined;
-                            this.state[action.rook.to] = rook;
+                    case MoveType.EN_PASSANT: {
+                        const xIncrement = piece.color === Color.BLACK ? -1 : 1;
+                        const opponentSquare = Utils.toIndex(xTo + xIncrement, yTo);
+                        this.takePiece(opponentSquare);
+                        op.action = {
+                            move: move,
+                            opponent: opponentSquare
                         }
+                        break;
                     }
-                    this.state[move.to] = piece;
-                    this.updateLeglMoves();
-                    op.success = true;
                 }
+                if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
+                    if (piece.isFirstMove()) {
+                        piece.setFirstMove(false);
+                    }
+                }
+                if ((piece instanceof Pawn) && (Math.abs(xTo - xFrom) === 2)) {
+                    piece.setEnPassant(true);
+                    newEnPassant = move.to;
+                }
+                this.state[move.from] = undefined;
+                this.state[move.to] = piece;
+                this.updateLegalMoves(newEnPassant);
+                op.success = true;
             }
         }
+        console.log(this.state);
+
         return op;
     }
 
@@ -304,15 +351,15 @@ export class Board {
         switch (color) {
             case Color.BLACK:
                 if (side === CastleSide.KING_SIDE) {
-                    return [this.CASTLE_SQUARES.KS.B.FROM.KING, this.CASTLE_SQUARES.KS.B.FROM.ROOK];
+                    return [this.CASTLE_SQUARES.KS.B.KING.FROM, this.CASTLE_SQUARES.KS.B.ROOK.FROM];
                 } else {
-                    return [this.CASTLE_SQUARES.QS.B.FROM.ROOK, this.CASTLE_SQUARES.QS.B.FROM.KING];
+                    return [this.CASTLE_SQUARES.QS.B.ROOK.FROM, this.CASTLE_SQUARES.QS.B.KING.FROM];
                 }
             case Color.WHITE:
                 if (side === CastleSide.KING_SIDE) {
-                    return [this.CASTLE_SQUARES.KS.W.FROM.KING, this.CASTLE_SQUARES.KS.W.FROM.ROOK];
+                    return [this.CASTLE_SQUARES.KS.W.KING.FROM, this.CASTLE_SQUARES.KS.W.ROOK.FROM];
                 } else {
-                    return [this.CASTLE_SQUARES.QS.W.FROM.ROOK, this.CASTLE_SQUARES.QS.W.FROM.KING];
+                    return [this.CASTLE_SQUARES.QS.W.ROOK.FROM, this.CASTLE_SQUARES.QS.W.KING.FROM];
                 }
         }
     }
