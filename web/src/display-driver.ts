@@ -1,4 +1,4 @@
-import {CastleMove, EnPassantMove, MoveAction, MoveOperation, MoveType, NormalMove} from "./board.js";
+import {CastleMove, EnPassantMove, MoveOperation, MoveType} from "./board.js";
 import {GameEvent, GameEventType} from "./game-events.js";
 import {Notifier} from "./notifier.js";
 import {Move, Piece} from "./pieces.js";
@@ -123,27 +123,11 @@ export class DisplayDriver {
 
     applyMove(op: MoveOperation): void {
         this.removeHighlight();
-        let action: MoveAction;
-        switch (op.type) {
-            case MoveType.TAKE:
-            case MoveType.MOVE:
-                action = <NormalMove>op.action;
-                break;
-            case MoveType.CASTLE:
-                action = <CastleMove>op.action;
-                break;
-            case MoveType.EN_PASSANT:
-                action = <EnPassantMove>op.action;
-                break;
-            default:
-                action = <NormalMove>op.action;
-                break;
-        }
-        const from: number = action.move.from;
+        const from: number = op.action.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
         const fromSquare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
 
-        const to: number = action.move.to;
+        const to: number = op.action.move.to;
         const [x1, y1]: [number, number] = Utils.toXY(to);
         const toSquare: HTMLDivElement = this.boardContainer.children[x1].children[y1] as HTMLDivElement;
 
@@ -151,13 +135,12 @@ export class DisplayDriver {
             toSquare.firstChild?.remove();
         }
 
-        // TODO: find better attr than "is" & find how to avoid repetitive code
         if (op.type === MoveType.CASTLE) {
-            const castleFrom: number = (<CastleMove>action).rook.from;
+            const castleFrom: number = (<CastleMove>op.action).rook.from;
             const [castleFromX, castleFromY]: [number, number] = Utils.toXY(castleFrom);
             const castleFromSquare: HTMLDivElement = this.boardContainer.children[castleFromX].children[castleFromY] as HTMLDivElement;
 
-            const castleTo: number = (<CastleMove>action).rook.to;
+            const castleTo: number = (<CastleMove>op.action).rook.to;
             const [castleToX, castleToY]: [number, number] = Utils.toXY(castleTo);
             const castleToSquare: HTMLDivElement = this.boardContainer.children[castleToX].children[castleToY] as HTMLDivElement;
 
@@ -166,7 +149,7 @@ export class DisplayDriver {
         }
 
         if (op.type === MoveType.EN_PASSANT) {
-            const opponentPiece: number = (<EnPassantMove>action).opponent;
+            const opponentPiece: number = (<EnPassantMove>op.action).opponent;
             const [opponentX, opponentY]: [number, number] = Utils.toXY(opponentPiece);
             const opponentSquare: HTMLDivElement = this.boardContainer.children[opponentX].children[opponentY] as HTMLDivElement;
             opponentSquare.firstChild?.remove();

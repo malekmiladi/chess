@@ -205,8 +205,8 @@ export class Board {
     }
 
     determineMoveType(piece: Piece, opponentPiece: (Piece | undefined), move: Move): MoveType {
-        const [xFrom, yFrom] = Utils.toXY(move.from);
-        const [xTo, yTo] = Utils.toXY(move.to);
+        const [, yFrom] = Utils.toXY(move.from);
+        const [, yTo] = Utils.toXY(move.to);
 
         switch (piece.constructor) {
             case King:
@@ -228,6 +228,52 @@ export class Board {
         return MoveType.MOVE;
     }
 
+
+    handleCastleMove(move: Move, op: MoveOperation): void {
+        switch (move.to) {
+            case this.CASTLE_SQUARES.QS.B.KING.TO:
+                op.action = {
+                    rook: {
+                        from: this.CASTLE_SQUARES.QS.B.ROOK.FROM,
+                        to: this.CASTLE_SQUARES.QS.B.ROOK.TO
+                    },
+                    move: move
+                };
+                break
+            case this.CASTLE_SQUARES.KS.B.KING.TO:
+                op.action = {
+                    rook: {
+                        from: this.CASTLE_SQUARES.KS.B.ROOK.FROM,
+                        to: this.CASTLE_SQUARES.KS.B.ROOK.TO
+                    },
+                    move: move
+                };
+                break
+            case this.CASTLE_SQUARES.QS.W.KING.TO:
+                op.action = {
+                    rook: {
+                        from: this.CASTLE_SQUARES.QS.W.ROOK.FROM,
+                        to: this.CASTLE_SQUARES.QS.W.ROOK.TO
+                    },
+                    move: move
+                };
+                break;
+            case this.CASTLE_SQUARES.KS.W.KING.TO:
+                op.action = {
+                    rook: {
+                        from: this.CASTLE_SQUARES.KS.W.ROOK.FROM,
+                        to: this.CASTLE_SQUARES.KS.W.ROOK.TO
+                    },
+                    move: move
+                };
+                break;
+        }
+        const action = <CastleMove>op.action;
+        const rook: Rook = <Rook>this.state[action.rook.from];
+        this.state[action.rook.from] = undefined;
+        this.state[action.rook.to] = rook;
+    }
+
     movePiece(move: Move, whitesTurn: boolean): MoveOperation {
         let op: MoveOperation = {
             success: false,
@@ -244,7 +290,7 @@ export class Board {
             const isWhitesTurn: boolean = piece.color == Color.WHITE && whitesTurn;
             const isBlacksTurn: boolean = piece.color == Color.BLACK && !whitesTurn;
             if (isWhitesTurn || isBlacksTurn) {
-                const [xFrom, yFrom] = Utils.toXY(move.from);
+                const [xFrom,] = Utils.toXY(move.from);
                 const [xTo, yTo] = Utils.toXY(move.to);
                 this.prevStates.push([...this.state]);
                 op.type = this.determineMoveType(piece, opponentPiece, move);
@@ -255,48 +301,7 @@ export class Board {
                         break;
                     }
                     case MoveType.CASTLE: {
-                        switch (move.to) {
-                            case this.CASTLE_SQUARES.QS.B.KING.TO:
-                                op.action = {
-                                    rook: {
-                                        from: this.CASTLE_SQUARES.QS.B.ROOK.FROM,
-                                        to: this.CASTLE_SQUARES.QS.B.ROOK.TO
-                                    },
-                                    move: move
-                                };
-                                break
-                            case this.CASTLE_SQUARES.KS.B.KING.TO:
-                                op.action = {
-                                    rook: {
-                                        from: this.CASTLE_SQUARES.KS.B.ROOK.FROM,
-                                        to: this.CASTLE_SQUARES.KS.B.ROOK.TO
-                                    },
-                                    move: move
-                                };
-                                break
-                            case this.CASTLE_SQUARES.QS.W.KING.TO:
-                                op.action = {
-                                    rook: {
-                                        from: this.CASTLE_SQUARES.QS.W.ROOK.FROM,
-                                        to: this.CASTLE_SQUARES.QS.W.ROOK.TO
-                                    },
-                                    move: move
-                                };
-                                break;
-                            case this.CASTLE_SQUARES.KS.W.KING.TO:
-                                op.action = {
-                                    rook: {
-                                        from: this.CASTLE_SQUARES.KS.W.ROOK.FROM,
-                                        to: this.CASTLE_SQUARES.KS.W.ROOK.TO
-                                    },
-                                    move: move
-                                };
-                                break;
-                        }
-                        const action = <CastleMove>op.action;
-                        const rook: Rook = <Rook>this.state[action.rook.from];
-                        this.state[action.rook.from] = undefined;
-                        this.state[action.rook.to] = rook;
+                        this.handleCastleMove(move, op);
                         break;
                     }
                     case MoveType.EN_PASSANT: {
@@ -325,7 +330,6 @@ export class Board {
                 op.success = true;
             }
         }
-        console.log(this.state);
 
         return op;
     }
