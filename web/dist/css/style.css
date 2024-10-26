@@ -82,6 +82,6 @@ body {
     gap: 0;
 }
 
-[popover]:not(:popover-open):not(dialog[open]) {
-    display: none !important;
+#promotion-box[popover]:not(:popover-open):not(dialog[open]) {
+    display: none;
 }
