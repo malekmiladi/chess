@@ -12,8 +12,8 @@ body {
 
 .board {
     display: grid;
-    grid-template-columns: repeat(8, 1);
-    grid-template-rows: repeat(8, 1);
+    grid-template-columns: repeat(8, 100px);
+    grid-template-rows: repeat(8, 100px);
     gap: 0;
 }
 
@@ -37,7 +37,7 @@ body {
     cursor: grabbing;
 }
 
-.piece img {
+.piece img[type="image/svg+xml"] {
     pointer-events: none;
     width: 100px;
     height: 100px;
@@ -74,4 +74,14 @@ body {
     top: 35%;
     left: 35%;
     pointer-events: none;
+}
+
+#promotion-box {
+    display: grid;
+    grid-template-columns: repeat(4, 100px);
+    gap: 0;
+}
+
+[popover]:not(:popover-open):not(dialog[open]) {
+    display: none !important;
 }

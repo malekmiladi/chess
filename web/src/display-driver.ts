@@ -1,8 +1,9 @@
 import {CastleMove, EnPassantMove, MoveOperation, MoveType} from "./board.js";
-import {GameEvent, GameEventType} from "./game-events.js";
+import {GameEventType} from "./game-events.js";
 import {Notifier} from "./notifier.js";
-import {Move, Piece} from "./pieces.js";
+import {Color, Move, Piece} from "./pieces.js";
 import {Utils} from "./utils.js";
+import {sprites} from "./sprites.js";
 
 export class DisplayDriver {
 
@@ -11,13 +12,16 @@ export class DisplayDriver {
     draggedPiece: number | null;
     highlightedSquares: number[];
     boardContainer: HTMLDivElement;
+    promotionBox: HTMLDivElement;
 
     constructor(ctx: HTMLDivElement, notifier: Notifier) {
         this.ctx = ctx as HTMLDivElement;
         this.boardContainer = this.ctx.children[0] as HTMLDivElement;
+        this.promotionBox = this.ctx.children[1] as HTMLDivElement;
         this.notifier = notifier;
         this.draggedPiece = null;
         this.highlightedSquares = [];
+        this.promotionBox.hidePopover();
     }
 
     drawBoard(): void {
@@ -31,6 +35,11 @@ export class DisplayDriver {
                 square.setAttribute("x", row.toString());
                 square.setAttribute("y", i.toString());
                 square.setAttribute("index", Utils.toIndex(row, i).toString());
+                square.addEventListener("dragstart", this.onDragStart);
+                square.addEventListener("dragover", this.onDragOver);
+                square.addEventListener("dragend", this.onDragEnd);
+                square.addEventListener("drop", this.onDrop);
+                square.addEventListener("click", this.onClick);
                 if (row % 2 == 0) {
                     if (i % 2 == 0) {
                         square.classList.add("white");
@@ -77,14 +86,14 @@ export class DisplayDriver {
             targetSquare = targetSquare.parentElement as HTMLDivElement;
         }
         const [xTarget, yTarget]: [number, number] = Utils.extractXYFromElement(targetSquare);
-        const movePieceEvent: GameEvent = {
+
+        this.notifier.notify({
             type: GameEventType.MOVE_PIECE,
             move: {
                 from: this.draggedPiece,
                 to: Utils.toIndex(xTarget, yTarget)
             } as Move
-        }
-        this.notifier.notify(movePieceEvent);
+        });
     }
 
     onClick = (e: Event): void => {
@@ -96,27 +105,25 @@ export class DisplayDriver {
         });
     }
 
+    createPiece(square: Element, piece: Piece) {
+        let pieceObject = document.createElement("div");
+        pieceObject.classList.add("piece");
+        pieceObject.style.cursor = "";
+        pieceObject.draggable = true;
+        let pieceSprite = document.createElement('img');
+        pieceSprite.setAttribute("type", "image/svg+xml");
+        pieceSprite.setAttribute("src", piece.sprite.svg);
+        pieceObject.appendChild(pieceSprite);
+        square.appendChild(pieceObject);
+    }
 
     drawPieces(state: (Piece | undefined)[]): void {
         for (let i: number = 0; i < 64; i++) {
             const [x, y]: [number, number] = Utils.toXY(i);
             const square = this.boardContainer.children[x].children[y];
-            square.addEventListener("dragstart", this.onDragStart);
-            square.addEventListener("dragover", this.onDragOver);
-            square.addEventListener("dragend", this.onDragEnd);
-            square.addEventListener("drop", this.onDrop);
-            square.addEventListener("click", this.onClick);
             const piece: (Piece | undefined) = state[i];
             if (piece) {
-                let pieceObject = document.createElement("div");
-                pieceObject.classList.add("piece");
-                pieceObject.style.cursor = "";
-                pieceObject.draggable = true;
-                let pieceSprite = document.createElement('img');
-                pieceSprite.setAttribute("type", "image/svg+xml");
-                pieceSprite.setAttribute("src", piece.sprite.svg);
-                pieceObject.appendChild(pieceSprite);
-                square.appendChild(pieceObject);
+                this.createPiece(square, piece);
             }
         }
     }
@@ -131,7 +138,7 @@ export class DisplayDriver {
         const [x1, y1]: [number, number] = Utils.toXY(to);
         const toSquare: HTMLDivElement = this.boardContainer.children[x1].children[y1] as HTMLDivElement;
 
-        if (op.type === MoveType.TAKE) {
+        if (op.type === MoveType.TAKE || op.type === MoveType.PROMOTION_AND_TAKE) {
             toSquare.firstChild?.remove();
         }
 
@@ -157,6 +164,81 @@ export class DisplayDriver {
 
         toSquare.append(fromSquare.firstChild as HTMLDivElement);
         fromSquare.firstChild?.remove();
+    }
+
+    onChoiceClick = (e: MouseEvent) => {
+        const choice: string = (<HTMLElement>e.currentTarget).getAttribute("piece") as string;
+        this.promotionBox.hidePopover();
+        this.promotionBox.replaceChildren();
+        this.notifier.notify({
+            type: GameEventType.PROMOTION_CHOICE,
+            choice: parseInt(choice)
+        });
+    }
+
+    createPromotionChoice(choice: number, color: Color) {
+        let choiceElement = document.createElement("div");
+        choiceElement.setAttribute("class", "choice");
+        choiceElement.setAttribute("piece", choice.toString());
+        choiceElement.addEventListener("click", this.onChoiceClick);
+        let pieceObject = document.createElement("img");
+        pieceObject.setAttribute("type", "image/svg+xml");
+        switch (choice) {
+            case 0: {
+                const spriteSvg = color === Color.BLACK ? sprites.queen.black.svg : sprites.queen.white.svg;
+                pieceObject.setAttribute("src", spriteSvg);
+                break;
+            }
+            case 1: {
+                const spriteSvg = color === Color.BLACK ? sprites.rook.black.svg : sprites.rook.white.svg;
+                pieceObject.setAttribute("src", spriteSvg);
+                break;
+            }
+            case 2: {
+                const spriteSvg = color === Color.BLACK ? sprites.bishop.black.svg : sprites.bishop.white.svg;
+                pieceObject.setAttribute("src", spriteSvg);
+                break;
+            }
+            case 3: {
+                const spriteSvg = color === Color.BLACK ? sprites.knight.black.svg : sprites.knight.white.svg;
+                pieceObject.setAttribute("src", spriteSvg);
+                break;
+            }
+        }
+        choiceElement.appendChild(pieceObject);
+        this.promotionBox.appendChild(choiceElement);
+    }
+
+    promptForPromotion(spriteColor: Color) {
+        for (let i = 0; i < 4; i++) {
+            this.createPromotionChoice(i, spriteColor);
+        }
+        this.promotionBox.showPopover();
+    }
+
+    applyPromotion(square: number, choice: number, color: Color) {
+        const [x, y]: [number, number] = Utils.toXY(square);
+        const pieceSquare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
+        const piece = pieceSquare.firstChild as HTMLDivElement;
+        const img = piece.firstChild as HTMLImageElement
+        switch (choice) {
+            case 0: {
+                img.src = color === Color.BLACK ? sprites.queen.black.svg : sprites.queen.white.svg;
+                break;
+            }
+            case 1: {
+                img.src = color === Color.BLACK ? sprites.rook.black.svg : sprites.rook.white.svg;
+                break;
+            }
+            case 2: {
+                img.src = color === Color.BLACK ? sprites.bishop.black.svg : sprites.bishop.white.svg;
+                break;
+            }
+            case 3: {
+                img.src = color === Color.BLACK ? sprites.knight.black.svg : sprites.knight.white.svg;
+                break;
+            }
+        }
     }
 
     highlightLegalMoves(legalMoves: number[]): void {

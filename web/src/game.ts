@@ -1,7 +1,7 @@
-import { Board, MoveOperation } from "./board.js";
-import { DisplayDriver } from "./display-driver.js";
-import { GameEvent, GameEventType } from "./game-events.js";
-import { Notifier, Subscriber } from "./notifier.js";
+import {Board} from "./board.js";
+import {DisplayDriver} from "./display-driver.js";
+import {GameEvent, GameEventType} from "./game-events.js";
+import {Notifier, Subscriber} from "./notifier.js";
 
 export class Game implements Subscriber {
 
@@ -26,18 +26,33 @@ export class Game implements Subscriber {
 
     update(event: GameEvent) {
         switch (event.type) {
-            case GameEventType.MOVE_PIECE:
+            case GameEventType.MOVE_PIECE: {
                 if (event.move.from !== event.move.to) {
-                    const moveApplied: MoveOperation = this.board.movePiece(event.move, this.whitesTurn);
-                    if (moveApplied.success) {
-                        this.whitesTurn = !this.whitesTurn;
-                        this.displayDriver.applyMove(moveApplied);
-                    }
+                    this.board.movePiece(event.move, this.whitesTurn);
                 }
                 break;
-            case GameEventType.HIGHLIGHT_LEGAL_MOVES:
+            }
+            case GameEventType.HIGHLIGHT_LEGAL_MOVES: {
                 const legalMoves: number[] = this.board.getLegalMoves(event.square);
                 this.displayDriver.highlightLegalMoves(legalMoves);
+                break;
+            }
+            case GameEventType.UPDATE_DISPLAY: {
+                this.whitesTurn = !this.whitesTurn;
+                this.displayDriver.applyMove(event.op);
+                break;
+            }
+            case GameEventType.PROMOTION: {
+                this.displayDriver.promptForPromotion(event.color);
+                break;
+            }
+            case GameEventType.PROMOTION_CHOICE: {
+                this.board.promotePiece(event.choice);
+                break;
+            }
+            case GameEventType.PROMOTION_SUCCESS: {
+                this.displayDriver.applyPromotion(event.square, event.choice, event.color);
+            }
         }
     }
 } 

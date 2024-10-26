@@ -7,6 +7,13 @@ export enum Color {
     BLACK = 2
 }
 
+export enum Promotions {
+    QUEEN,
+    ROOK,
+    BISHOP,
+    KNIGHT
+}
+
 export type Move = {
     from: number,
     to: number
@@ -167,6 +174,7 @@ export class King implements Piece {
     sprite: Sprite;
     legalMoves: number[] = [];
     defendedPieces: number[] = [];
+    surroundingSquares: number[] = []
 
     constructor(id: number, color: Color) {
         this.id = id;
@@ -188,6 +196,18 @@ export class King implements Piece {
 
     getAttackedSquares(): number[] {
         return this.legalMoves.concat(this.defendedPieces);
+    }
+
+    getSurroundingSquares(square: number): number[] {
+        this.surroundingSquares = [];
+        const [x, y]: [number, number] = Utils.toXY(square);
+        for (const step of this.moveChecks) {
+            const [x1, y1] = [x + step.x, y + step.y];
+            if (Utils.xyWithingBounds(x1, y1)) {
+                this.surroundingSquares.push(Utils.toIndex(x1, y1));
+            }
+        }
+        return this.surroundingSquares;
     }
 
     getCastleSquare(rook: (Rook | undefined), boardState: (Piece | undefined)[], start: number, end: number, ks: boolean): number {
@@ -236,21 +256,22 @@ export class King implements Piece {
         return castleMoves;
     }
 
-
     generateLegalMoves(square: number, board: Board): void {
         this.legalMoves = [];
         this.defendedPieces = [];
+        this.surroundingSquares = [];
         const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
         const [x, y]: [number, number] = Utils.toXY(square);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toIndex(x1, y1);
+                this.surroundingSquares.push(square);
                 if (!board.isUnderAttack(square, adversary)) {
                     const piece: (Piece | undefined) = board.state[square];
-                    if (!piece || (piece.color != this.color)) {
+                    if (!piece || (piece.color !== this.color)) {
                         this.legalMoves.push(square);
-                    } else if (piece.color == this.color) {
+                    } else if (piece.color === this.color) {
                         this.defendedPieces.push(square);
                     }
                 }

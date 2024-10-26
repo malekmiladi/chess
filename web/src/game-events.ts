@@ -1,4 +1,5 @@
-import { Color, Move } from "./pieces.js"
+import {Color, Move, Promotions} from "./pieces.js"
+import {MoveOperation} from "./board";
 
 export enum GameEventType {
     NEW_GAME,
@@ -6,7 +7,11 @@ export enum GameEventType {
     HIGHLIGHT_LEGAL_MOVES,
     MOVE_PIECE,
     TAKE_PIECE,
-    CHECK
+    CHECK,
+    UPDATE_DISPLAY,
+    PROMOTION,
+    PROMOTION_CHOICE,
+    PROMOTION_SUCCESS
 }
 
 export type GameEvent =
@@ -27,4 +32,22 @@ export type GameEvent =
     | {
         type: GameEventType.HIGHLIGHT_LEGAL_MOVES,
         square: number
+    }
+    | {
+        type: GameEventType.UPDATE_DISPLAY,
+        op: MoveOperation
+    }
+    | {
+        type: GameEventType.PROMOTION,
+        color: Color
+    }
+    | {
+        type: GameEventType.PROMOTION_CHOICE,
+        choice: Promotions
+    }
+    | {
+        type: GameEventType.PROMOTION_SUCCESS,
+        square: number,
+        choice: number,
+        color: Color
     }

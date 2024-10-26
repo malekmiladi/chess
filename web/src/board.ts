@@ -1,6 +1,7 @@
 import {Bishop, Color, King, Knight, Move, Pawn, Piece, Queen, Rook} from './pieces.js'
 import {Notifier} from './notifier.js'
 import {Utils} from "./utils.js";
+import {GameEventType} from "./game-events.js";
 
 export enum CastleSide {
     KING_SIDE,
@@ -11,7 +12,20 @@ export enum MoveType {
     MOVE,
     TAKE,
     CASTLE,
-    EN_PASSANT
+    EN_PASSANT,
+    PROMOTION,
+    PROMOTION_AND_TAKE
+}
+
+export enum Ranks {
+    EIGHTH = 7,
+    SEVENTH = 6,
+    SIXTH = 5,
+    FIFTH = 4,
+    FOURTH = 3,
+    THIRD = 2,
+    SECOND = 1,
+    FIRST = 0
 }
 
 export type NormalMove = {
@@ -32,7 +46,6 @@ export type MoveAction = NormalMove | CastleMove | EnPassantMove;
 
 
 export type MoveOperation = {
-    success: boolean;
     type: MoveType;
     action: MoveAction;
 }
@@ -98,6 +111,7 @@ export class Board {
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
+    promotionInProgress: { square: number };
 
     constructor(notifier: Notifier) {
         this.territory = [];
@@ -108,6 +122,9 @@ export class Board {
             b: this.CASTLE_SQUARES.KS.B.KING.FROM,
             w: this.CASTLE_SQUARES.KS.W.KING.FROM
         } as Kings
+        this.promotionInProgress = {
+            square: -1
+        };
         this.initiateBoard();
         this.updateLegalMoves(null);
     }
@@ -165,7 +182,7 @@ export class Board {
                     }
                 } else {
                     if (piece instanceof Pawn) {
-                        if ((i !== ignoreEnPassantFor) && piece.isEnPassant()) {
+                        if ((ignoreEnPassantFor !== i) && piece.isEnPassant()) {
                             piece.setEnPassant(false);
                         }
                     }
@@ -181,32 +198,25 @@ export class Board {
         let wK = <King>this.state[this.kings.w];
         let bK = <King>this.state[this.kings.b];
 
-        wK.generateLegalMoves(this.kings.w, this);
-        bK.generateLegalMoves(this.kings.b, this);
-
-        const wKAttackedSquares = wK.getAttackedSquares();
-        const bKAttackedSquares = bK.getAttackedSquares();
-
-        const intersection = wKAttackedSquares.filter(
-            (square: number) => bKAttackedSquares.includes(square)
-        );
+        const wKAttackedSquares = wK.getSurroundingSquares(this.kings.w);
+        const bKAttackedSquares = bK.getSurroundingSquares(this.kings.b);
 
         for (const square of bKAttackedSquares) {
-            if (!intersection.includes(square)) {
-                this.territory[square].add(Color.BLACK);
-            }
+            this.territory[square].add(Color.BLACK);
         }
 
         for (const square of wKAttackedSquares) {
-            if (!intersection.includes(square)) {
-                this.territory[square].add(Color.WHITE);
-            }
+            this.territory[square].add(Color.WHITE);
         }
+
+        wK.generateLegalMoves(this.kings.w, this);
+        bK.generateLegalMoves(this.kings.b, this);
+
     }
 
     determineMoveType(piece: Piece, opponentPiece: (Piece | undefined), move: Move): MoveType {
         const [, yFrom] = Utils.toXY(move.from);
-        const [, yTo] = Utils.toXY(move.to);
+        const [xTo, yTo] = Utils.toXY(move.to);
 
         switch (piece.constructor) {
             case King:
@@ -217,6 +227,12 @@ export class Board {
             case Pawn:
                 if (!opponentPiece && (yFrom !== yTo)) {
                     return MoveType.EN_PASSANT;
+                }
+                if (xTo === Ranks.EIGHTH || xTo === Ranks.FIRST) {
+                    if (opponentPiece) {
+                        return MoveType.PROMOTION_AND_TAKE;
+                    }
+                    return MoveType.PROMOTION;
                 }
                 break;
         }
@@ -274,9 +290,9 @@ export class Board {
         this.state[action.rook.to] = rook;
     }
 
-    movePiece(move: Move, whitesTurn: boolean): MoveOperation {
+    movePiece(move: Move, whitesTurn: boolean): void {
+
         let op: MoveOperation = {
-            success: false,
             type: MoveType.MOVE,
             action: {
                 move: move
@@ -314,6 +330,14 @@ export class Board {
                         }
                         break;
                     }
+                    case MoveType.PROMOTION:
+                    case MoveType.PROMOTION_AND_TAKE: {
+                        if (opponentPiece) {
+                            this.takePiece(move.to);
+                        }
+                        this.promotionInProgress.square = move.to;
+                        break;
+                    }
                 }
                 if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
                     if (piece.isFirstMove()) {
@@ -327,11 +351,53 @@ export class Board {
                 this.state[move.from] = undefined;
                 this.state[move.to] = piece;
                 this.updateLegalMoves(newEnPassant);
-                op.success = true;
+
+                this.notifier.notify({
+                    type: GameEventType.UPDATE_DISPLAY,
+                    op: op
+                });
+
+                if (this.promotionInProgress.square !== -1) {
+                    this.notifier.notify({
+                        type: GameEventType.PROMOTION,
+                        color: piece.color
+                    });
+                }
             }
         }
+    }
 
-        return op;
+    promotePiece(choice: number) {
+        let piece: Piece = <Piece>this.state[this.promotionInProgress.square];
+        const promotionSquare = this.promotionInProgress.square;
+        switch (choice) {
+            case 0: {
+                this.state[this.promotionInProgress.square] = new Queen(piece.id, piece.color);
+                break;
+            }
+            case 1: {
+                const rook = new Rook(piece.id, piece.color);
+                rook.setFirstMove(false);
+                this.state[this.promotionInProgress.square] = rook;
+                break;
+            }
+            case 2: {
+                this.state[this.promotionInProgress.square] = new Bishop(piece.id, piece.color);
+                break;
+            }
+            case 3: {
+                this.state[this.promotionInProgress.square] = new Knight(piece.id, piece.color);
+                break;
+            }
+        }
+        this.updateLegalMoves(null);
+        this.promotionInProgress.square = -1;
+        this.notifier.notify({
+            type: GameEventType.PROMOTION_SUCCESS,
+            square: promotionSquare,
+            choice: choice,
+            color: piece.color
+        })
     }
 
     takePiece(to: number): void {
