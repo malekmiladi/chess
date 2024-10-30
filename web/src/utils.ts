@@ -11,7 +11,7 @@ export class Utils {
         return [Math.floor(squareIndex / 8), squareIndex % 8];
     }
 
-    static toIndex(x: number, y: number) {
+    static toSquare(x: number, y: number) {
         return x * 8 + y;
     }
 

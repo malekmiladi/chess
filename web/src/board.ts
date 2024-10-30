@@ -2,6 +2,8 @@ import {Bishop, Color, King, Knight, Move, Pawn, Piece, Queen, Rook} from './pie
 import {Notifier} from './notifier.js'
 import {Utils} from "./utils.js";
 import {GameEventType} from "./game-events.js";
+import {CustomStates} from "./custom-states.js";
+import {Arbiter} from "./arbiter.js";
 
 export enum CastleSide {
     KING_SIDE,
@@ -107,17 +109,19 @@ export class Board {
     }
 
     notifier: Notifier;
+    arbiter: Arbiter;
     state: (Piece | undefined)[];
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
     promotionInProgress: { square: number };
 
-    constructor(notifier: Notifier) {
+    constructor(notifier: Notifier, arbiter: Arbiter) {
         this.territory = [];
         this.state = [];
         this.prevStates = [];
         this.notifier = notifier;
+        this.arbiter = arbiter;
         this.kings = {
             b: this.CASTLE_SQUARES.KS.B.KING.FROM,
             w: this.CASTLE_SQUARES.KS.W.KING.FROM
@@ -125,11 +129,12 @@ export class Board {
         this.promotionInProgress = {
             square: -1
         };
-        this.initiateBoard();
+        this.state = CustomStates.KingsQueenKnight();
+        //this.initialize();
         this.updateLegalMoves(null);
     }
 
-    initiateBoard(): void {
+    initialize(): void {
         this.state.push(
             new Rook(0, Color.BLACK),
             new Knight(1, Color.BLACK),
@@ -165,38 +170,50 @@ export class Board {
         return this.territory[square].has(adversary);
     }
 
+    updateKingIndices() {
+        for (let i: number = 0; i < 64; i++) {
+            const piece = this.state[i];
+            if (piece && piece instanceof King) {
+                if (piece.color === Color.BLACK) {
+                    this.kings.b = i;
+                } else {
+                    this.kings.w = i;
+                }
+            }
+        }
+    }
+
     updateLegalMoves(ignoreEnPassantFor: number | null): void {
         // TODO: add pinned pieces logic, and line of sight on king
         this.territory = [];
         for (let i: number = 0; i < 64; i++) {
             this.territory.push(new Set());
         }
+
+        const bkAttackers = this.arbiter.kingAttackingPieces(this.kings.b, this.state, Color.BLACK);
+        const wkAttackers = this.arbiter.kingAttackingPieces(this.kings.w, this.state, Color.WHITE);
+
+        console.log(bkAttackers);
+        console.log(wkAttackers);
+
         for (let i: number = 0; i < 64; i++) {
             const piece = this.state[i];
             if (piece) {
-                if (piece instanceof King) {
-                    if (piece.color == Color.BLACK) {
-                        this.kings.b = i;
-                    } else {
-                        this.kings.w = i;
+                if (piece instanceof Pawn) {
+                    if ((ignoreEnPassantFor !== i) && piece.isEnPassant()) {
+                        piece.setEnPassant(false);
                     }
-                } else {
-                    if (piece instanceof Pawn) {
-                        if ((ignoreEnPassantFor !== i) && piece.isEnPassant()) {
-                            piece.setEnPassant(false);
-                        }
-                    }
-                    piece.generateLegalMoves(i, this);
-                    const attackedSquares: number[] = piece.getAttackedSquares();
-                    for (const square of attackedSquares) {
-                        this.territory[square].add(piece.color);
-                    }
+                }
+                piece.generateLegalMoves(i, this);
+                const attackedSquares: number[] = piece.getAttackedSquares();
+                for (const square of attackedSquares) {
+                    this.territory[square].add(piece.color);
                 }
             }
         }
 
-        let wK = <King>this.state[this.kings.w];
         let bK = <King>this.state[this.kings.b];
+        let wK = <King>this.state[this.kings.w];
 
         const wKAttackedSquares = wK.getSurroundingSquares(this.kings.w);
         const bKAttackedSquares = bK.getSurroundingSquares(this.kings.b);
@@ -303,8 +320,8 @@ export class Board {
         const opponentPiece: (Piece | undefined) = this.state[move.to];
 
         if (piece && piece.isLegalMove(move.to)) {
-            const isWhitesTurn: boolean = piece.color == Color.WHITE && whitesTurn;
-            const isBlacksTurn: boolean = piece.color == Color.BLACK && !whitesTurn;
+            const isWhitesTurn: boolean = piece.color === Color.WHITE && whitesTurn;
+            const isBlacksTurn: boolean = piece.color === Color.BLACK && !whitesTurn;
             if (isWhitesTurn || isBlacksTurn) {
                 const [xFrom,] = Utils.toXY(move.from);
                 const [xTo, yTo] = Utils.toXY(move.to);
@@ -322,7 +339,7 @@ export class Board {
                     }
                     case MoveType.EN_PASSANT: {
                         const xIncrement = piece.color === Color.BLACK ? -1 : 1;
-                        const opponentSquare = Utils.toIndex(xTo + xIncrement, yTo);
+                        const opponentSquare = Utils.toSquare(xTo + xIncrement, yTo);
                         this.takePiece(opponentSquare);
                         op.action = {
                             move: move,
@@ -350,6 +367,7 @@ export class Board {
                 }
                 this.state[move.from] = undefined;
                 this.state[move.to] = piece;
+                this.updateKingIndices();
                 this.updateLegalMoves(newEnPassant);
 
                 this.notifier.notify({
@@ -390,6 +408,8 @@ export class Board {
                 break;
             }
         }
+        let wKAttackers = this.arbiter.kingAttackingPieces(this.kings.w, this.state, Color.WHITE);
+        let bKAttackers = this.arbiter.kingAttackingPieces(this.kings.b, this.state, Color.BLACK);
         this.updateLegalMoves(null);
         this.promotionInProgress.square = -1;
         this.notifier.notify({

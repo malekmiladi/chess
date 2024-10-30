@@ -27,7 +27,7 @@ export type GameEvent =
     }
     | {
         type: GameEventType.CHECK,
-        player: Color
+        square: number
     }
     | {
         type: GameEventType.HIGHLIGHT_LEGAL_MOVES,

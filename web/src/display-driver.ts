@@ -3,7 +3,7 @@ import {GameEventType} from "./game-events.js";
 import {Notifier} from "./notifier.js";
 import {Color, Move, Piece} from "./pieces.js";
 import {Utils} from "./utils.js";
-import {sprites} from "./sprites.js";
+import {Sprites} from "./sprites.js";
 
 export class DisplayDriver {
 
@@ -34,20 +34,20 @@ export class DisplayDriver {
                 square.classList.add("square");
                 square.setAttribute("x", row.toString());
                 square.setAttribute("y", i.toString());
-                square.setAttribute("index", Utils.toIndex(row, i).toString());
+                square.setAttribute("index", Utils.toSquare(row, i).toString());
                 square.addEventListener("dragstart", this.onDragStart);
                 square.addEventListener("dragover", this.onDragOver);
                 square.addEventListener("dragend", this.onDragEnd);
                 square.addEventListener("drop", this.onDrop);
                 square.addEventListener("click", this.onClick);
-                if (row % 2 == 0) {
-                    if (i % 2 == 0) {
+                if (row % 2 === 0) {
+                    if (i % 2 === 0) {
                         square.classList.add("white");
                     } else {
                         square.classList.add("brown");
                     }
                 } else {
-                    if (i % 2 == 0) {
+                    if (i % 2 === 0) {
                         square.classList.add("brown");
                     } else {
                         square.classList.add("white");
@@ -63,7 +63,7 @@ export class DisplayDriver {
     onDragStart = (e: Event): void => {
         const originalSquare: HTMLElement = e.currentTarget as HTMLElement;
         const [x, y]: [number, number] = Utils.extractXYFromElement(originalSquare);
-        this.draggedPiece = Utils.toIndex(x, y);
+        this.draggedPiece = Utils.toSquare(x, y);
         (<HTMLElement>e.target).style.cursor = "grabbing";
     }
 
@@ -74,7 +74,7 @@ export class DisplayDriver {
     onDragEnd = (e: Event): void => {
         const originalSquare: HTMLElement = e.currentTarget as HTMLElement;
         const [x, y]: [number, number] = Utils.extractXYFromElement(originalSquare);
-        this.draggedPiece = Utils.toIndex(x, y);
+        this.draggedPiece = Utils.toSquare(x, y);
         (<HTMLElement>e.target).style.cursor = "";
     }
 
@@ -91,7 +91,7 @@ export class DisplayDriver {
             type: GameEventType.MOVE_PIECE,
             move: {
                 from: this.draggedPiece,
-                to: Utils.toIndex(xTarget, yTarget)
+                to: Utils.toSquare(xTarget, yTarget)
             } as Move
         });
     }
@@ -101,7 +101,7 @@ export class DisplayDriver {
         const [x, y]: [number, number] = Utils.extractXYFromElement(square);
         this.notifier.notify({
             type: GameEventType.HIGHLIGHT_LEGAL_MOVES,
-            square: Utils.toIndex(x, y)
+            square: Utils.toSquare(x, y)
         });
     }
 
@@ -112,7 +112,7 @@ export class DisplayDriver {
         pieceObject.draggable = true;
         let pieceSprite = document.createElement('img');
         pieceSprite.setAttribute("type", "image/svg+xml");
-        pieceSprite.setAttribute("src", piece.sprite.svg);
+        pieceSprite.setAttribute("src", piece.sprite.SVG);
         pieceObject.appendChild(pieceSprite);
         square.appendChild(pieceObject);
     }
@@ -185,22 +185,22 @@ export class DisplayDriver {
         pieceObject.setAttribute("type", "image/svg+xml");
         switch (choice) {
             case 0: {
-                const spriteSvg = color === Color.BLACK ? sprites.queen.black.svg : sprites.queen.white.svg;
+                const spriteSvg = color === Color.BLACK ? Sprites.QUEEN.B.SVG : Sprites.QUEEN.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
             case 1: {
-                const spriteSvg = color === Color.BLACK ? sprites.rook.black.svg : sprites.rook.white.svg;
+                const spriteSvg = color === Color.BLACK ? Sprites.ROOK.B.SVG : Sprites.ROOK.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
             case 2: {
-                const spriteSvg = color === Color.BLACK ? sprites.bishop.black.svg : sprites.bishop.white.svg;
+                const spriteSvg = color === Color.BLACK ? Sprites.BISHOP.B.SVG : Sprites.BISHOP.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
             case 3: {
-                const spriteSvg = color === Color.BLACK ? sprites.knight.black.svg : sprites.knight.white.svg;
+                const spriteSvg = color === Color.BLACK ? Sprites.KNIGHT.B.SVG : Sprites.KNIGHT.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
@@ -223,19 +223,19 @@ export class DisplayDriver {
         const img = piece.firstChild as HTMLImageElement
         switch (choice) {
             case 0: {
-                img.src = color === Color.BLACK ? sprites.queen.black.svg : sprites.queen.white.svg;
+                img.src = color === Color.BLACK ? Sprites.QUEEN.B.SVG : Sprites.QUEEN.W.SVG;
                 break;
             }
             case 1: {
-                img.src = color === Color.BLACK ? sprites.rook.black.svg : sprites.rook.white.svg;
+                img.src = color === Color.BLACK ? Sprites.ROOK.B.SVG : Sprites.ROOK.W.SVG;
                 break;
             }
             case 2: {
-                img.src = color === Color.BLACK ? sprites.bishop.black.svg : sprites.bishop.white.svg;
+                img.src = color === Color.BLACK ? Sprites.BISHOP.B.SVG : Sprites.BISHOP.W.SVG;
                 break;
             }
             case 3: {
-                img.src = color === Color.BLACK ? sprites.knight.black.svg : sprites.knight.white.svg;
+                img.src = color === Color.BLACK ? Sprites.KNIGHT.B.SVG : Sprites.KNIGHT.W.SVG;
                 break;
             }
         }

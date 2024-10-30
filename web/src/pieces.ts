@@ -1,6 +1,7 @@
 import {Board, CastleSide} from "./board.js";
-import {sprites, Sprite} from "./sprites.js";
 import {Utils} from "./utils.js";
+import {MOVE_CHECKS} from "./arbiter.js";
+import {Sprite, Sprites} from "./sprites.js";
 
 export enum Color {
     WHITE = 1,
@@ -59,21 +60,11 @@ export class Pawn implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.pawn.white;
-            this.moveChecks = [
-                {x: -1, y: -1},
-                {x: -1, y: 1},
-                {x: -1, y: 0},
-                {x: -2, y: 0}
-            ]
+            this.sprite = Sprites.PAWN.W;
+            this.moveChecks = MOVE_CHECKS.PAWN.W
         } else {
-            this.sprite = sprites.pawn.black;
-            this.moveChecks = [
-                {x: 1, y: -1},
-                {x: 1, y: 1},
-                {x: 1, y: 0},
-                {x: 2, y: 0}
-            ]
+            this.sprite = Sprites.PAWN.B;
+            this.moveChecks = MOVE_CHECKS.PAWN.B
         }
     }
 
@@ -107,12 +98,12 @@ export class Pawn implements Piece {
             const step: Step = this.moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 const otherPiece: (Piece | undefined) = board.state[square];
-                if (step.y != 0) {
+                if (step.y !== 0) {
                     this.attackedSquares.push(square);
                     if (otherPiece) {
-                        if (otherPiece.color != this.color) {
+                        if (otherPiece.color !== this.color) {
                             this.legalMoves.push(square);
                         } else {
                             this.defendedPieces.push(square);
@@ -120,7 +111,7 @@ export class Pawn implements Piece {
                     }
                 } else {
                     if (!otherPiece && !pieceOnTheWay) {
-                        if ((Math.abs(step.x) == 1) || ((Math.abs(step.x) == 2) && this.firstMove)) {
+                        if ((Math.abs(step.x) === 1) || ((Math.abs(step.x) === 2) && this.firstMove)) {
                             this.legalMoves.push(square);
                         }
                     } else {
@@ -132,16 +123,16 @@ export class Pawn implements Piece {
         for (const step of this.enPassantChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 const otherPiece: (Piece | undefined) = board.state[square];
                 if (otherPiece) {
-                    const isOpponent = otherPiece.color != this.color;
+                    const isOpponent = otherPiece.color !== this.color;
                     const isPawn = otherPiece instanceof Pawn;
                     if (isOpponent) {
                         if (isPawn) {
                             if (otherPiece.isEnPassant()) {
                                 const xIncrement = this.color === Color.BLACK ? 1 : -1;
-                                const enPassantSquare = Utils.toIndex(x1 + xIncrement, y1);
+                                const enPassantSquare = Utils.toSquare(x1 + xIncrement, y1);
                                 this.legalMoves.push(enPassantSquare);
                             }
                         }
@@ -159,16 +150,7 @@ export class Pawn implements Piece {
 
 export class King implements Piece {
     id: number;
-    moveChecks: Step[] = [
-        {x: -1, y: -1},
-        {x: -1, y: 0},
-        {x: -1, y: 1},
-        {x: 1, y: -1},
-        {x: 1, y: 0},
-        {x: 1, y: 1},
-        {x: 0, y: -1},
-        {x: 0, y: 1}
-    ];
+    moveChecks: Step[] = MOVE_CHECKS.KING;
     private firstMove: boolean = true;
     color: Color;
     sprite: Sprite;
@@ -180,9 +162,9 @@ export class King implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.king.white;
+            this.sprite = Sprites.KING.W;
         } else {
-            this.sprite = sprites.king.black;
+            this.sprite = Sprites.KING.B;
         }
     }
 
@@ -204,7 +186,7 @@ export class King implements Piece {
         for (const step of this.moveChecks) {
             const [x1, y1] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                this.surroundingSquares.push(Utils.toIndex(x1, y1));
+                this.surroundingSquares.push(Utils.toSquare(x1, y1));
             }
         }
         return this.surroundingSquares;
@@ -260,12 +242,12 @@ export class King implements Piece {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.surroundingSquares = [];
-        const adversary: Color = this.color == Color.BLACK ? Color.WHITE : Color.BLACK;
+        const adversary: Color = this.color === Color.BLACK ? Color.WHITE : Color.BLACK;
         const [x, y]: [number, number] = Utils.toXY(square);
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 this.surroundingSquares.push(square);
                 if (!board.isUnderAttack(square, adversary)) {
                     const piece: (Piece | undefined) = board.state[square];
@@ -288,16 +270,7 @@ export class King implements Piece {
 
 export class Queen implements Piece {
     id: number;
-    moveChecks: Step[] = [
-        {x: -1, y: -1},
-        {x: -1, y: 1},
-        {x: 1, y: -1},
-        {x: 1, y: 1},
-        {x: -1, y: 0},
-        {x: 1, y: 0},
-        {x: 0, y: -1},
-        {x: 0, y: 1}
-    ];
+    moveChecks: Step[] = MOVE_CHECKS.QUEEN;
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -307,9 +280,9 @@ export class Queen implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.queen.white;
+            this.sprite = Sprites.QUEEN.W;
         } else {
-            this.sprite = sprites.queen.black;
+            this.sprite = Sprites.QUEEN.B;
         }
     }
 
@@ -325,7 +298,7 @@ export class Queen implements Piece {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
@@ -335,12 +308,12 @@ export class Queen implements Piece {
                             this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color != this.color)) {
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
                             kingInPath = true;
                         } else {
                             stopWalking = true;
                         }
-                        if (piece.color != this.color && !kingInPath) {
+                        if (piece.color !== this.color && !kingInPath) {
                             this.legalMoves.push(square);
                         } else {
                             this.defendedPieces.push(square);
@@ -371,12 +344,7 @@ export class Queen implements Piece {
 
 export class Bishop implements Piece {
     id: number;
-    moveChecks: Step[] = [
-        {x: -1, y: -1},
-        {x: -1, y: 1},
-        {x: 1, y: -1},
-        {x: 1, y: 1}
-    ];
+    moveChecks: Step[] = MOVE_CHECKS.BISHOP;
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -386,9 +354,9 @@ export class Bishop implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.bishop.white;
+            this.sprite = Sprites.BISHOP.W;
         } else {
-            this.sprite = sprites.bishop.black;
+            this.sprite = Sprites.BISHOP.B;
         }
     }
 
@@ -404,7 +372,7 @@ export class Bishop implements Piece {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
@@ -414,12 +382,12 @@ export class Bishop implements Piece {
                             this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color != this.color)) {
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
                             kingInPath = true;
                         } else {
                             stopWalking = true;
                         }
-                        if (piece.color != this.color && !kingInPath) {
+                        if (piece.color !== this.color && !kingInPath) {
                             this.legalMoves.push(square);
                         } else {
                             this.defendedPieces.push(square);
@@ -450,16 +418,7 @@ export class Bishop implements Piece {
 
 export class Knight implements Piece {
     id: number;
-    moveChecks: Step[] = [
-        {x: -1, y: -2},
-        {x: -1, y: 2},
-        {x: -2, y: -1},
-        {x: -2, y: 1},
-        {x: 1, y: -2},
-        {x: 1, y: 2},
-        {x: 2, y: -1},
-        {x: 2, y: 1}
-    ];
+    moveChecks: Step[] = MOVE_CHECKS.KNIGHT;
     color: Color;
     sprite: Sprite;
     legalMoves: number[] = [];
@@ -469,9 +428,9 @@ export class Knight implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.knight.white;
+            this.sprite = Sprites.KNIGHT.W;
         } else {
-            this.sprite = sprites.knight.black;
+            this.sprite = Sprites.KNIGHT.B;
         }
     }
 
@@ -486,11 +445,11 @@ export class Knight implements Piece {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
-                if (!piece || (piece.color != this.color)) {
+                if (!piece || (piece.color !== this.color)) {
                     this.legalMoves.push(square);
-                } else if (piece.color == this.color) {
+                } else if (piece.color === this.color) {
                     this.defendedPieces.push(square);
                 }
             }
@@ -504,12 +463,7 @@ export class Knight implements Piece {
 
 export class Rook implements Piece {
     id: number;
-    moveChecks: Step[] = [
-        {x: -1, y: 0},
-        {x: 1, y: 0},
-        {x: 0, y: -1},
-        {x: 0, y: 1}
-    ]
+    moveChecks: Step[] = MOVE_CHECKS.ROOK;
     private firstMove: boolean = true;
     color: Color;
     sprite: Sprite;
@@ -520,9 +474,9 @@ export class Rook implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = sprites.rook.white;
+            this.sprite = Sprites.ROOK.W;
         } else {
-            this.sprite = sprites.rook.black;
+            this.sprite = Sprites.ROOK.B;
         }
     }
 
@@ -546,7 +500,7 @@ export class Rook implements Piece {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toIndex(x1, y1);
+                const square: number = Utils.toSquare(x1, y1);
                 if (square > -1 && square < 64) {
                     const piece: (Piece | undefined) = board.state[square];
                     if (!piece) {
@@ -556,12 +510,12 @@ export class Rook implements Piece {
                             this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color != this.color)) {
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
                             kingInPath = true;
                         } else {
                             stopWalking = true;
                         }
-                        if (piece.color != this.color && !kingInPath) {
+                        if (piece.color !== this.color && !kingInPath) {
                             this.legalMoves.push(square);
                         } else {
                             this.defendedPieces.push(square);

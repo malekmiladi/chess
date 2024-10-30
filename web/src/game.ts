@@ -2,19 +2,22 @@ import {Board} from "./board.js";
 import {DisplayDriver} from "./display-driver.js";
 import {GameEvent, GameEventType} from "./game-events.js";
 import {Notifier, Subscriber} from "./notifier.js";
+import {Arbiter} from "./arbiter.js";
 
 export class Game implements Subscriber {
 
     ctx: HTMLDivElement;
     notifier: Notifier;
     board: Board;
+    arbiter: Arbiter;
     displayDriver: DisplayDriver;
     whitesTurn: boolean;
 
     constructor(ctx: HTMLDivElement) {
         this.ctx = ctx;
         this.notifier = new Notifier(this);
-        this.board = new Board(this.notifier);
+        this.arbiter = new Arbiter(this.notifier);
+        this.board = new Board(this.notifier, this.arbiter);
         this.displayDriver = new DisplayDriver(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
         this.whitesTurn = true;
     }
