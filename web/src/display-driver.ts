@@ -1,9 +1,9 @@
-import {CastleMove, EnPassantMove, MoveOperation, MoveType} from "./board.js";
+import {CastleMove, EnPassantMove, MoveOperation, MoveType, Promotions} from "./board.js";
 import {GameEventType} from "./game-events.js";
 import {Notifier} from "./notifier.js";
 import {Color, Move, Piece} from "./pieces.js";
 import {Utils} from "./utils.js";
-import {Sprites} from "./sprites.js";
+import {SPRITES} from "./sprites.js";
 
 export class DisplayDriver {
 
@@ -24,7 +24,7 @@ export class DisplayDriver {
         this.promotionBox.hidePopover();
     }
 
-    drawBoard(): void {
+        drawBoard(): void {
         let row: number = 0;
         while (row < 8) {
             let squareRow = document.createElement('div');
@@ -184,23 +184,23 @@ export class DisplayDriver {
         let pieceObject = document.createElement("img");
         pieceObject.setAttribute("type", "image/svg+xml");
         switch (choice) {
-            case 0: {
-                const spriteSvg = color === Color.BLACK ? Sprites.QUEEN.B.SVG : Sprites.QUEEN.W.SVG;
+            case Promotions.QUEEN: {
+                const spriteSvg = color === Color.BLACK ? SPRITES.QUEEN.B.SVG : SPRITES.QUEEN.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
-            case 1: {
-                const spriteSvg = color === Color.BLACK ? Sprites.ROOK.B.SVG : Sprites.ROOK.W.SVG;
+            case Promotions.ROOK: {
+                const spriteSvg = color === Color.BLACK ? SPRITES.ROOK.B.SVG : SPRITES.ROOK.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
-            case 2: {
-                const spriteSvg = color === Color.BLACK ? Sprites.BISHOP.B.SVG : Sprites.BISHOP.W.SVG;
+            case Promotions.BISHOP: {
+                const spriteSvg = color === Color.BLACK ? SPRITES.BISHOP.B.SVG : SPRITES.BISHOP.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
-            case 3: {
-                const spriteSvg = color === Color.BLACK ? Sprites.KNIGHT.B.SVG : Sprites.KNIGHT.W.SVG;
+            case Promotions.KNIGHT: {
+                const spriteSvg = color === Color.BLACK ? SPRITES.KNIGHT.B.SVG : SPRITES.KNIGHT.W.SVG;
                 pieceObject.setAttribute("src", spriteSvg);
                 break;
             }
@@ -222,20 +222,20 @@ export class DisplayDriver {
         const piece = pieceSquare.firstChild as HTMLDivElement;
         const img = piece.firstChild as HTMLImageElement
         switch (choice) {
-            case 0: {
-                img.src = color === Color.BLACK ? Sprites.QUEEN.B.SVG : Sprites.QUEEN.W.SVG;
+            case Promotions.QUEEN: {
+                img.src = color === Color.BLACK ? SPRITES.QUEEN.B.SVG : SPRITES.QUEEN.W.SVG;
                 break;
             }
-            case 1: {
-                img.src = color === Color.BLACK ? Sprites.ROOK.B.SVG : Sprites.ROOK.W.SVG;
+            case Promotions.ROOK: {
+                img.src = color === Color.BLACK ? SPRITES.ROOK.B.SVG : SPRITES.ROOK.W.SVG;
                 break;
             }
-            case 2: {
-                img.src = color === Color.BLACK ? Sprites.BISHOP.B.SVG : Sprites.BISHOP.W.SVG;
+            case Promotions.BISHOP: {
+                img.src = color === Color.BLACK ? SPRITES.BISHOP.B.SVG : SPRITES.BISHOP.W.SVG;
                 break;
             }
-            case 3: {
-                img.src = color === Color.BLACK ? Sprites.KNIGHT.B.SVG : Sprites.KNIGHT.W.SVG;
+            case Promotions.KNIGHT: {
+                img.src = color === Color.BLACK ? SPRITES.KNIGHT.B.SVG : SPRITES.KNIGHT.W.SVG;
                 break;
             }
         }

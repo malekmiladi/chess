@@ -59,6 +59,13 @@ export type Kings = {
     w: number;
 }
 
+export enum Promotions {
+    QUEEN,
+    ROOK,
+    BISHOP,
+    KNIGHT
+}
+
 export class Board {
 
     readonly CASTLE_SQUARES = {
@@ -166,32 +173,24 @@ export class Board {
         )
     }
 
-    isUnderAttack(square: number, adversary: Color): boolean {
-        return this.territory[square].has(adversary);
-    }
-
-    updateKingIndices() {
-        for (let i: number = 0; i < 64; i++) {
-            const piece = this.state[i];
-            if (piece && piece instanceof King) {
-                if (piece.color === Color.BLACK) {
-                    this.kings.b = i;
-                } else {
-                    this.kings.w = i;
-                }
-            }
-        }
-    }
-
-    updateLegalMoves(ignoreEnPassantFor: number | null): void {
-        // TODO: add pinned pieces logic, and line of sight on king
+    // TODO: can't be bothered to optimize this for now...
+    resetTerritory(): void {
         this.territory = [];
         for (let i: number = 0; i < 64; i++) {
             this.territory.push(new Set());
         }
+    }
 
-        const bkAttackers = this.arbiter.kingAttackingPieces(this.kings.b, this.state, Color.BLACK);
-        const wkAttackers = this.arbiter.kingAttackingPieces(this.kings.w, this.state, Color.WHITE);
+    isUnderAttack(square: number, adversary: Color): boolean {
+        return this.territory[square].has(adversary);
+    }
+
+    updateLegalMoves(ignoreEnPassantFor: number | null): void {
+        // TODO: add pinned pieces logic, and line of sight on king
+        this.resetTerritory();
+
+        const bkAttackers = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
+        const wkAttackers = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
         console.log(bkAttackers);
         console.log(wkAttackers);
@@ -201,7 +200,7 @@ export class Board {
             if (piece) {
                 if (piece instanceof Pawn) {
                     if ((ignoreEnPassantFor !== i) && piece.isEnPassant()) {
-                        piece.setEnPassant(false);
+                        piece.setEnPassantVulnerable(false);
                     }
                 }
                 piece.generateLegalMoves(i, this);
@@ -320,14 +319,20 @@ export class Board {
         const opponentPiece: (Piece | undefined) = this.state[move.to];
 
         if (piece && piece.isLegalMove(move.to)) {
+
             const isWhitesTurn: boolean = piece.color === Color.WHITE && whitesTurn;
             const isBlacksTurn: boolean = piece.color === Color.BLACK && !whitesTurn;
+
             if (isWhitesTurn || isBlacksTurn) {
+
+                this.prevStates.push([...this.state]);
+
                 const [xFrom,] = Utils.toXY(move.from);
                 const [xTo, yTo] = Utils.toXY(move.to);
-                this.prevStates.push([...this.state]);
+
                 op.type = this.determineMoveType(piece, opponentPiece, move);
                 let newEnPassant: number | null = null;
+
                 switch (op.type) {
                     case MoveType.TAKE: {
                         this.takePiece(move.to);
@@ -356,18 +361,32 @@ export class Board {
                         break;
                     }
                 }
-                if (piece instanceof Pawn || piece instanceof King || piece instanceof Rook) {
+
+                const isPawn = piece instanceof Pawn;
+                const isKing = piece instanceof King;
+                const isRook = piece instanceof Rook;
+
+                if (isPawn || isKing || isRook) {
                     if (piece.isFirstMove()) {
                         piece.setFirstMove(false);
                     }
+                    if (isKing) {
+                        if (piece.color === Color.BLACK) {
+                            this.kings.b = move.to;
+                        } else {
+                            this.kings.w = move.to;
+                        }
+                    }
                 }
-                if ((piece instanceof Pawn) && (Math.abs(xTo - xFrom) === 2)) {
-                    piece.setEnPassant(true);
+
+                const pawn2SquaresMove = Math.abs(xTo - xFrom) === 2;
+                if (isPawn && pawn2SquaresMove) {
+                    piece.setEnPassantVulnerable(true);
                     newEnPassant = move.to;
                 }
+
                 this.state[move.from] = undefined;
                 this.state[move.to] = piece;
-                this.updateKingIndices();
                 this.updateLegalMoves(newEnPassant);
 
                 this.notifier.notify({
@@ -386,37 +405,37 @@ export class Board {
     }
 
     promotePiece(choice: number) {
-        let piece: Piece = <Piece>this.state[this.promotionInProgress.square];
+        let pawn = <Pawn>this.state[this.promotionInProgress.square];
         const promotionSquare = this.promotionInProgress.square;
+
         switch (choice) {
-            case 0: {
-                this.state[this.promotionInProgress.square] = new Queen(piece.id, piece.color);
+            case Promotions.QUEEN: {
+                this.state[this.promotionInProgress.square] = new Queen(pawn.id, pawn.color);
                 break;
             }
-            case 1: {
-                const rook = new Rook(piece.id, piece.color);
+            case Promotions.ROOK: {
+                const rook = new Rook(pawn.id, pawn.color);
                 rook.setFirstMove(false);
                 this.state[this.promotionInProgress.square] = rook;
                 break;
             }
-            case 2: {
-                this.state[this.promotionInProgress.square] = new Bishop(piece.id, piece.color);
+            case Promotions.BISHOP: {
+                this.state[this.promotionInProgress.square] = new Bishop(pawn.id, pawn.color);
                 break;
             }
-            case 3: {
-                this.state[this.promotionInProgress.square] = new Knight(piece.id, piece.color);
+            case Promotions.KNIGHT: {
+                this.state[this.promotionInProgress.square] = new Knight(pawn.id, pawn.color);
                 break;
             }
         }
-        let wKAttackers = this.arbiter.kingAttackingPieces(this.kings.w, this.state, Color.WHITE);
-        let bKAttackers = this.arbiter.kingAttackingPieces(this.kings.b, this.state, Color.BLACK);
+
         this.updateLegalMoves(null);
         this.promotionInProgress.square = -1;
         this.notifier.notify({
             type: GameEventType.PROMOTION_SUCCESS,
             square: promotionSquare,
             choice: choice,
-            color: piece.color
+            color: pawn.color
         })
     }
 

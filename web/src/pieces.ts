@@ -1,7 +1,7 @@
 import {Board, CastleSide} from "./board.js";
 import {Utils} from "./utils.js";
 import {MOVE_CHECKS} from "./arbiter.js";
-import {Sprite, Sprites} from "./sprites.js";
+import {Sprite, SPRITES} from "./sprites.js";
 
 export enum Color {
     WHITE = 1,
@@ -42,7 +42,7 @@ export interface Piece {
 
 export class Pawn implements Piece {
     private firstMove: boolean = true;
-    private enPassant: boolean = false;
+    private enPassantVulnerable: boolean = false;
     private attackedSquares: number[] = [];
     private enPassantChecks: Step[] = [
         {x: 0, y: 1},
@@ -60,10 +60,10 @@ export class Pawn implements Piece {
         this.id = id;
         this.color = color;
         if (color === Color.WHITE) {
-            this.sprite = Sprites.PAWN.W;
+            this.sprite = SPRITES.PAWN.W;
             this.moveChecks = MOVE_CHECKS.PAWN.W
         } else {
-            this.sprite = Sprites.PAWN.B;
+            this.sprite = SPRITES.PAWN.B;
             this.moveChecks = MOVE_CHECKS.PAWN.B
         }
     }
@@ -77,11 +77,11 @@ export class Pawn implements Piece {
     }
 
     isEnPassant(): boolean {
-        return this.enPassant;
+        return this.enPassantVulnerable;
     }
 
-    public setEnPassant(enPassant: boolean): void {
-        this.enPassant = enPassant;
+    public setEnPassantVulnerable(enPassant: boolean): void {
+        this.enPassantVulnerable = enPassant;
     }
 
     getAttackedSquares(): number[] {
@@ -98,21 +98,24 @@ export class Pawn implements Piece {
             const step: Step = this.moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toSquare(x1, y1);
-                const otherPiece: (Piece | undefined) = board.state[square];
-                if (step.y !== 0) {
-                    this.attackedSquares.push(square);
+                const targetSquare: number = Utils.toSquare(x1, y1);
+                const otherPiece: (Piece | undefined) = board.state[targetSquare];
+                const isDiagonalStep = step.y !== 0;
+                if (isDiagonalStep) {
+                    this.attackedSquares.push(targetSquare);
                     if (otherPiece) {
                         if (otherPiece.color !== this.color) {
-                            this.legalMoves.push(square);
+                            this.legalMoves.push(targetSquare);
                         } else {
-                            this.defendedPieces.push(square);
+                            this.defendedPieces.push(targetSquare);
                         }
                     }
                 } else {
                     if (!otherPiece && !pieceOnTheWay) {
-                        if ((Math.abs(step.x) === 1) || ((Math.abs(step.x) === 2) && this.firstMove)) {
-                            this.legalMoves.push(square);
+                        const oneStepForward = Math.abs(step.x) === 1;
+                        const twoStepsForward = Math.abs(step.x) === 2;
+                        if (oneStepForward || (twoStepsForward && this.firstMove)) {
+                            this.legalMoves.push(targetSquare);
                         }
                     } else {
                         pieceOnTheWay = true;
@@ -161,11 +164,7 @@ export class King implements Piece {
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        if (color === Color.WHITE) {
-            this.sprite = Sprites.KING.W;
-        } else {
-            this.sprite = Sprites.KING.B;
-        }
+        this.sprite = color === Color.WHITE ? SPRITES.KING.W : SPRITES.KING.B;
     }
 
     public isFirstMove() {
@@ -279,11 +278,7 @@ export class Queen implements Piece {
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        if (color === Color.WHITE) {
-            this.sprite = Sprites.QUEEN.W;
-        } else {
-            this.sprite = Sprites.QUEEN.B;
-        }
+        this.sprite = color === Color.WHITE ? SPRITES.QUEEN.W : SPRITES.QUEEN.B;
     }
 
     getAttackedSquares(): number[] {
@@ -299,30 +294,27 @@ export class Queen implements Piece {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.state[square];
-                    if (!piece) {
-                        if (!kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                const piece: (Piece | undefined) = board.state[square];
+                if (!piece) {
+                    if (!kingInPath) {
+                        this.legalMoves.push(square);
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                        this.defendedPieces.push(square);
                     }
-                    squareIndex = square;
                 } else {
-                    stopWalking = true;
+                    if ((piece instanceof King) && (piece.color !== this.color)) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (piece.color !== this.color && !kingInPath) {
+                        this.legalMoves.push(square);
+                    } else {
+                        this.defendedPieces.push(square);
+                    }
                 }
+                squareIndex = square;
+
             } else {
                 stopWalking = true;
             }
@@ -353,11 +345,7 @@ export class Bishop implements Piece {
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        if (color === Color.WHITE) {
-            this.sprite = Sprites.BISHOP.W;
-        } else {
-            this.sprite = Sprites.BISHOP.B;
-        }
+        this.sprite = color === Color.WHITE ? SPRITES.BISHOP.W : SPRITES.BISHOP.B;
     }
 
     getAttackedSquares(): number[] {
@@ -373,30 +361,27 @@ export class Bishop implements Piece {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.state[square];
-                    if (!piece) {
-                        if (!kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                const piece: (Piece | undefined) = board.state[square];
+                if (!piece) {
+                    if (!kingInPath) {
+                        this.legalMoves.push(square);
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                        this.defendedPieces.push(square);
                     }
-                    squareIndex = square;
                 } else {
-                    stopWalking = true;
+                    if ((piece instanceof King) && (piece.color !== this.color)) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (piece.color !== this.color && !kingInPath) {
+                        this.legalMoves.push(square);
+                    } else {
+                        this.defendedPieces.push(square);
+                    }
                 }
+                squareIndex = square;
+
             } else {
                 stopWalking = true;
             }
@@ -427,11 +412,7 @@ export class Knight implements Piece {
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        if (color === Color.WHITE) {
-            this.sprite = Sprites.KNIGHT.W;
-        } else {
-            this.sprite = Sprites.KNIGHT.B;
-        }
+        this.sprite = color === Color.WHITE ? SPRITES.KNIGHT.W : SPRITES.KNIGHT.B;
     }
 
     getAttackedSquares(): number[] {
@@ -473,11 +454,7 @@ export class Rook implements Piece {
     constructor(id: number, color: Color) {
         this.id = id;
         this.color = color;
-        if (color === Color.WHITE) {
-            this.sprite = Sprites.ROOK.W;
-        } else {
-            this.sprite = Sprites.ROOK.B;
-        }
+        this.sprite = color === Color.WHITE ? SPRITES.ROOK.W : SPRITES.ROOK.B;
     }
 
     public isFirstMove() {
@@ -501,30 +478,26 @@ export class Rook implements Piece {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                if (square > -1 && square < 64) {
-                    const piece: (Piece | undefined) = board.state[square];
-                    if (!piece) {
-                        if (!kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                const piece: (Piece | undefined) = board.state[square];
+                if (!piece) {
+                    if (!kingInPath) {
+                        this.legalMoves.push(square);
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
-                            this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
-                        }
+                        this.defendedPieces.push(square);
                     }
-                    squareIndex = square;
                 } else {
-                    stopWalking = true;
+                    if ((piece instanceof King) && (piece.color !== this.color)) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (piece.color !== this.color && !kingInPath) {
+                        this.legalMoves.push(square);
+                    } else {
+                        this.defendedPieces.push(square);
+                    }
                 }
+                squareIndex = square;
             } else {
                 stopWalking = true;
             }

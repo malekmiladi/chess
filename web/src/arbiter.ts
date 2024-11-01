@@ -2,7 +2,6 @@ import {Notifier} from "./notifier.js";
 import {Bishop, Color, King, Knight, Pawn, Piece, Queen, Rook, Step} from "./pieces.js";
 import {Utils} from "./utils.js";
 
-
 export const MOVE_CHECKS = {
     PAWN: {
         B: [
@@ -72,6 +71,8 @@ export class Arbiter {
     constructor(notifier: Notifier) {
         this.notifier = notifier;
     }
+    // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
+    //       check if state is legal, if not revert back to previous state)
 
     checkForAttackingPiece([x, y]: [number, number], step: Step, attackingPieces: number[], color: Color, state: (Piece | undefined)[]) {
         const [x1, y1] = [x + step.x, y + step.y];
@@ -120,7 +121,7 @@ export class Arbiter {
         }
     }
 
-    kingAttackingPieces(square: number, state: (Piece | undefined)[], color: Color): number[] {
+    findKingAttackingPieces(square: number, state: (Piece | undefined)[], color: Color): number[] {
         const attackingPieces: number[] = [];
         const pawnChecks = color === Color.BLACK ? MOVE_CHECKS.PAWN.B : MOVE_CHECKS.PAWN.W;
         const [x, y] = Utils.toXY(square);
@@ -131,6 +132,16 @@ export class Arbiter {
             this.walkPath(square, step, attackingPieces, color, state);
         }
         return attackingPieces;
+    }
+
+    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): number[] {
+        let pinnedPieces: number[] = [];
+
+        for (const step of MOVE_CHECKS.QUEEN) {
+
+        }
+
+        return pinnedPieces;
     }
 
 }

@@ -3,7 +3,7 @@ export type Sprite = {
     SVG: string
 }
 
-export const Sprites = {
+export const SPRITES = {
     KING: {
         B: {
             SVG: "./assets/bK.svg"
