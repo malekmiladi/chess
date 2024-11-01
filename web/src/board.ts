@@ -136,8 +136,10 @@ export class Board {
         this.promotionInProgress = {
             square: -1
         };
-        this.state = CustomStates.KingsQueenKnight();
-        //this.initialize();
+
+        this.state = CustomStates.PinScenario();
+        // this.state = CustomStates.KingsQueenKnight();
+        // this.initialize();
         this.updateLegalMoves(null);
     }
 
@@ -192,8 +194,14 @@ export class Board {
         const bkAttackers = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
         const wkAttackers = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
-        console.log(bkAttackers);
-        console.log(wkAttackers);
+        const piecesPinnedByWhite = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
+        const piecesPinnedByBlack = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
+
+        console.log("White checks: ", bkAttackers);
+        console.log("Black checks: ", wkAttackers);
+
+        console.log("Pieces pinned by black: ", piecesPinnedByBlack);
+        console.log("Pieces pinned by white: ", piecesPinnedByWhite);
 
         for (let i: number = 0; i < 64; i++) {
             const piece = this.state[i];

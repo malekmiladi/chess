@@ -65,12 +65,18 @@ export const MOVE_CHECKS = {
     ]
 }
 
+export type Pin = {
+    piece: number,
+    attacker: number
+}
+
 export class Arbiter {
     notifier: Notifier;
 
     constructor(notifier: Notifier) {
         this.notifier = notifier;
     }
+
     // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
     //       check if state is legal, if not revert back to previous state)
 
@@ -94,6 +100,7 @@ export class Arbiter {
     walkPath(startSquare: number, step: Step, attackingPieces: number[], color: Color, state: (Piece | undefined)[]) {
         let stopWalking: boolean = false;
         let square: number = startSquare;
+
         while ((square < 64 && square > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
@@ -108,11 +115,15 @@ export class Arbiter {
                     const isBishop = targetPiece instanceof Bishop;
                     const isQueen = targetPiece instanceof Queen;
 
-                    if (isOpponent && (isRook || isQueen || isBishop)) {
+                    const slidesDiagonally = this.isDiagonalStep(step) && (isBishop || isQueen);
+                    const slidesOrthogonally = this.isOrthogonalStep(step) && (isRook || isQueen);
+
+                    if (isOpponent && (slidesDiagonally || slidesOrthogonally)) {
                         attackingPieces.push(targetSquare);
                     } else {
                         stopWalking = true;
                     }
+
                 }
                 square = targetSquare;
             } else {
@@ -134,14 +145,82 @@ export class Arbiter {
         return attackingPieces;
     }
 
-    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): number[] {
-        let pinnedPieces: number[] = [];
+    checkForPinnedPieceInPath(startSquare: number, step: Step, state: (Piece | undefined)[], color: Color): Pin {
+
+        let defender = -1;
+        let attacker = -1;
+
+        const isOrthogonalStep = this.isOrthogonalStep(step);
+        const isDiagonalStep = this.isDiagonalStep(step);
+
+        let stopWalking = false;
+        let square = startSquare;
+
+        while (square > -1 && square < 64 && !stopWalking) {
+            const [x, y] = Utils.toXY(square);
+            const [x1, y1] = [x + step.x, y + step.y];
+            if (Utils.xyWithingBounds(x1, y1)) {
+                const targetSquare = Utils.toSquare(x1, y1);
+                const piece = state[targetSquare];
+                if (piece) {
+
+                    const isQueen = piece instanceof Queen;
+                    const isRook = piece instanceof Rook;
+                    const isBishop = piece instanceof Bishop;
+
+                    const slidesOrthogonally = isOrthogonalStep && (isRook || isQueen);
+                    const slidesDiagonally = isDiagonalStep && (isQueen || isBishop);
+
+                    if (piece.color === color) {
+                        if (defender < 0) {
+                            defender = targetSquare;
+                        } else {
+                            stopWalking = true;
+                        }
+                    } else {
+                        if (slidesDiagonally || slidesOrthogonally) {
+                            if (isQueen || isRook || isBishop) {
+                                if (defender >= 0) {
+                                    attacker = targetSquare;
+                                }
+                            }
+                        }
+                        stopWalking = true;
+                    }
+                }
+                square = targetSquare;
+            } else {
+                stopWalking = true;
+            }
+        }
+
+        return {
+            piece: defender,
+            attacker: attacker
+        };
+    }
+
+    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): Pin[] {
+        // a bishop or a queen or a rook can each only pin 1 piece
+        // this array is guaranteed to have unique pins
+        let pinnedPieces: Pin[] = [];
 
         for (const step of MOVE_CHECKS.QUEEN) {
-
+            const pin = this.checkForPinnedPieceInPath(square, step, state, color);
+            if ((pin.piece !== -1) && (pin.attacker !== -1)) {
+                pinnedPieces.push(pin);
+            }
         }
 
         return pinnedPieces;
+    }
+
+    isOrthogonalStep(step: Step) {
+        return (step.x === 0) || (step.y === 0);
+    }
+
+    isDiagonalStep(step: Step) {
+        return (step.x !== 0) && (step.y !== 0);
     }
 
 }
