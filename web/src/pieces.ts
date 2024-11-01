@@ -35,7 +35,7 @@ export interface Piece {
 
     getAttackedSquares(): number[];
 
-    generateLegalMoves(square: number, board: Board): void;
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void;
 
     isLegalMove(to: number): boolean;
 }
@@ -88,7 +88,7 @@ export class Pawn implements Piece {
         return this.attackedSquares.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.attackedSquares = [];
@@ -237,7 +237,7 @@ export class King implements Piece {
         return castleMoves;
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.surroundingSquares = [];
@@ -321,7 +321,7 @@ export class Queen implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -388,7 +388,7 @@ export class Bishop implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -419,7 +419,7 @@ export class Knight implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -504,7 +504,7 @@ export class Rook implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board): void {
+    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {

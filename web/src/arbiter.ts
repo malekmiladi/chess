@@ -65,10 +65,9 @@ export const MOVE_CHECKS = {
     ]
 }
 
-export type Pin = {
-    piece: number,
-    attacker: number
-}
+export type Pin = [defender: number, attacker: number];
+
+export type PinMapping = [defenders: number[], attackers: number[]];
 
 export class Arbiter {
     notifier: Notifier;
@@ -194,25 +193,24 @@ export class Arbiter {
             }
         }
 
-        return {
-            piece: defender,
-            attacker: attacker
-        };
+        return [defender, attacker];
     }
 
-    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): Pin[] {
-        // a bishop or a queen or a rook can each only pin 1 piece
+    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): PinMapping {
+        // a bishop or a queen or a rook can each pin only 1 piece
         // this array is guaranteed to have unique pins
-        let pinnedPieces: Pin[] = [];
+        let defenders: number[] = [];
+        let attackers: number[] = [];
 
         for (const step of MOVE_CHECKS.QUEEN) {
-            const pin = this.checkForPinnedPieceInPath(square, step, state, color);
-            if ((pin.piece !== -1) && (pin.attacker !== -1)) {
-                pinnedPieces.push(pin);
+            const [defender, attacker] = this.checkForPinnedPieceInPath(square, step, state, color);
+            if ((defender !== -1) && (attacker !== -1)) {
+                defenders.push(defender);
+                attackers.push(attacker);
             }
         }
 
-        return pinnedPieces;
+        return [defenders, attackers];
     }
 
     isOrthogonalStep(step: Step) {

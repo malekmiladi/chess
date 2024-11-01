@@ -140,7 +140,7 @@ export class Board {
         this.state = CustomStates.PinScenario();
         // this.state = CustomStates.KingsQueenKnight();
         // this.initialize();
-        this.updateLegalMoves(null);
+        this.updateLegalMoves(null, false);
     }
 
     initialize(): void {
@@ -187,31 +187,42 @@ export class Board {
         return this.territory[square].has(adversary);
     }
 
-    updateLegalMoves(ignoreEnPassantFor: number | null): void {
-        // TODO: add pinned pieces logic, and line of sight on king
+    // TODO: rename func variables...
+    updateLegalMoves(ignoreEnPassantForThisSquare: number | null, adjustLegalMovesForPins: boolean): void {
         this.resetTerritory();
 
         const bkAttackers = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
         const wkAttackers = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
-        const piecesPinnedByWhite = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
-        const piecesPinnedByBlack = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
+        let pinnedByWhite: number[] = [];
+        let whiteAttackers: number[] = [];
 
-        console.log("White checks: ", bkAttackers);
-        console.log("Black checks: ", wkAttackers);
+        let pinnedByBlack: number[] = [];
+        let blackAttackers: number[] = [];
 
-        console.log("Pieces pinned by black: ", piecesPinnedByBlack);
-        console.log("Pieces pinned by white: ", piecesPinnedByWhite);
+        if (adjustLegalMovesForPins) {
+            [pinnedByWhite, whiteAttackers] = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
+            [pinnedByBlack, blackAttackers] = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
+        }
 
         for (let i: number = 0; i < 64; i++) {
             const piece = this.state[i];
             if (piece) {
                 if (piece instanceof Pawn) {
-                    if ((ignoreEnPassantFor !== i) && piece.isEnPassant()) {
+                    if ((ignoreEnPassantForThisSquare !== i) && piece.isEnPassant()) {
                         piece.setEnPassantVulnerable(false);
                     }
                 }
-                piece.generateLegalMoves(i, this);
+                // TODO: i don't like passing "this" as parameter, counter intuitive. Change logic later. maybe arbiter
+                //      should call the function?
+
+                // 1st call to get all legal moves while ignoring pins
+                if (piece.color === Color.WHITE) {
+                    piece.generateLegalMoves(i, this, pinnedByBlack, blackAttackers);
+                } else {
+                    piece.generateLegalMoves(i, this, pinnedByWhite, whiteAttackers);
+                }
+
                 const attackedSquares: number[] = piece.getAttackedSquares();
                 for (const square of attackedSquares) {
                     this.territory[square].add(piece.color);
@@ -233,8 +244,8 @@ export class Board {
             this.territory[square].add(Color.WHITE);
         }
 
-        wK.generateLegalMoves(this.kings.w, this);
-        bK.generateLegalMoves(this.kings.b, this);
+        wK.generateLegalMoves(this.kings.w, this, [], []);
+        bK.generateLegalMoves(this.kings.b, this, [], []);
 
     }
 
@@ -395,7 +406,8 @@ export class Board {
 
                 this.state[move.from] = undefined;
                 this.state[move.to] = piece;
-                this.updateLegalMoves(newEnPassant);
+                this.updateLegalMoves(newEnPassant, false);
+                this.updateLegalMoves(newEnPassant, true);
 
                 this.notifier.notify({
                     type: GameEventType.UPDATE_DISPLAY,
@@ -437,7 +449,8 @@ export class Board {
             }
         }
 
-        this.updateLegalMoves(null);
+        this.updateLegalMoves(null, false);
+        this.updateLegalMoves(null, true);
         this.promotionInProgress.square = -1;
         this.notifier.notify({
             type: GameEventType.PROMOTION_SUCCESS,
