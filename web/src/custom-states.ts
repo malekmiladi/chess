@@ -1,4 +1,4 @@
-import {Bishop, Color, King, Knight, Pawn, Piece, Queen, Rook} from "./pieces.js";
+import {Bishop, Color, King, Knight, Pawn, Piece, Queen} from "./pieces.js";
 
 export class CustomStates {
     public static KingsQueenKnight(): (Piece | undefined)[] {
@@ -54,6 +54,8 @@ export class CustomStates {
             undefined,
             undefined,
         );
+        state[53] = new Pawn(53, Color.WHITE);
         return state;
     }
+
 }

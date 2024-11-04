@@ -7,10 +7,14 @@ export const MOVE_CHECKS = {
         B: [
             {x: 1, y: 1},
             {x: 1, y: -1},
+            {x: 1, y: 0},
+            {x: 2, y: 0},
         ] as Step[],
         W: [
             {x: -1, y: 1},
             {x: -1, y: -1},
+            {x: -1, y: 0},
+            {x: -2, y: 0},
         ]
     },
     ROOK: [
@@ -27,11 +31,7 @@ export const MOVE_CHECKS = {
         {x: -1, y: -1},
         {x: -1, y: 1},
         {x: 1, y: -1},
-        {x: 1, y: 1},
-        {x: -1, y: 0},
-        {x: 1, y: 0},
-        {x: 0, y: -1},
-        {x: 0, y: 1}
+        {x: 1, y: 1}
     ],
     KNIGHT: [
         {x: -1, y: -2},
@@ -65,9 +65,7 @@ export const MOVE_CHECKS = {
     ]
 }
 
-export type Pin = [defender: number, attacker: number];
-
-export type PinMapping = [defenders: number[], attackers: number[]];
+export type AttackPath = number[];
 
 export class Arbiter {
     notifier: Notifier;
@@ -79,8 +77,9 @@ export class Arbiter {
     // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
     //       check if state is legal, if not revert back to previous state)
 
-    checkForAttackingPiece([x, y]: [number, number], step: Step, attackingPieces: number[], color: Color, state: (Piece | undefined)[]) {
+    checkForAttackingPiece([x, y]: [number, number], step: Step, color: Color, state: (Piece | undefined)[]): AttackPath {
         const [x1, y1] = [x + step.x, y + step.y];
+        let attack: AttackPath = [];
         if (Utils.xyWithingBounds(x1, y1)) {
             const targetSquare = Utils.toSquare(x1, y1);
             const piece: (Piece | undefined) = state[targetSquare];
@@ -90,22 +89,25 @@ export class Arbiter {
                 const isKnight = piece instanceof Knight;
 
                 if (isOpponent && (isPawn || isKnight)) {
-                    attackingPieces.push(targetSquare);
+                    attack.push(targetSquare);
                 }
             }
         }
+        return attack;
     }
 
-    walkPath(startSquare: number, step: Step, attackingPieces: number[], color: Color, state: (Piece | undefined)[]) {
+    walkPath(startSquare: number, step: Step, color: Color, state: (Piece | undefined)[]): AttackPath {
         let stopWalking: boolean = false;
         let square: number = startSquare;
-
+        let attack: AttackPath = [];
         while ((square < 64 && square > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const targetSquare: number = Utils.toSquare(x1, y1);
                 const targetPiece: (Piece | undefined) = state[targetSquare];
+
+                attack.push(targetSquare);
 
                 if (targetPiece) {
                     const isOpponent = targetPiece.color !== color;
@@ -118,48 +120,56 @@ export class Arbiter {
                     const slidesOrthogonally = this.isOrthogonalStep(step) && (isRook || isQueen);
 
                     if (isOpponent && (slidesDiagonally || slidesOrthogonally)) {
-                        attackingPieces.push(targetSquare);
+                        return attack;
                     } else {
                         stopWalking = true;
                     }
-
                 }
                 square = targetSquare;
             } else {
                 stopWalking = true;
             }
         }
+        return [];
     }
 
-    findKingAttackingPieces(square: number, state: (Piece | undefined)[], color: Color): number[] {
-        const attackingPieces: number[] = [];
+    findKingAttackingPieces(square: number, state: (Piece | undefined)[], color: Color): AttackPath[] {
+        const attackingPieces: AttackPath[] = [];
         const pawnChecks = color === Color.BLACK ? MOVE_CHECKS.PAWN.B : MOVE_CHECKS.PAWN.W;
         const [x, y] = Utils.toXY(square);
         for (const step of [...pawnChecks, ...MOVE_CHECKS.KNIGHT]) {
-            this.checkForAttackingPiece([x, y], step, attackingPieces, color, state);
+            const attack = this.checkForAttackingPiece([x, y], step, color, state);
+            if (attack.length > 0) {
+                attackingPieces.push(attack);
+            }
         }
         for (const step of MOVE_CHECKS.QUEEN) {
-            this.walkPath(square, step, attackingPieces, color, state);
+            const attack = this.walkPath(square, step, color, state);
+            if (attack.length > 0) {
+                attackingPieces.push(attack);
+            }
         }
         return attackingPieces;
     }
 
-    checkForPinnedPieceInPath(startSquare: number, step: Step, state: (Piece | undefined)[], color: Color): Pin {
+    checkForPinnedPieceInPath(startSquare: number, step: Step, state: (Piece | undefined)[], color: Color): AttackPath {
 
-        let defender = -1;
-        let attacker = -1;
+        let attackPath: AttackPath = [];
 
         const isOrthogonalStep = this.isOrthogonalStep(step);
         const isDiagonalStep = this.isDiagonalStep(step);
 
         let stopWalking = false;
         let square = startSquare;
+        let hasDefender = false;
 
         while (square > -1 && square < 64 && !stopWalking) {
             const [x, y] = Utils.toXY(square);
             const [x1, y1] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const targetSquare = Utils.toSquare(x1, y1);
+                attackPath.push(targetSquare);
+
                 const piece = state[targetSquare];
                 if (piece) {
 
@@ -171,20 +181,18 @@ export class Arbiter {
                     const slidesDiagonally = isDiagonalStep && (isQueen || isBishop);
 
                     if (piece.color === color) {
-                        if (defender < 0) {
-                            defender = targetSquare;
+                        if (!hasDefender) {
+                            hasDefender = true;
                         } else {
                             stopWalking = true;
                         }
                     } else {
                         if (slidesDiagonally || slidesOrthogonally) {
-                            if (isQueen || isRook || isBishop) {
-                                if (defender >= 0) {
-                                    attacker = targetSquare;
-                                }
+                            if (hasDefender) {
+                                return attackPath;
                             }
                         }
-                        stopWalking = true;
+                        return [];
                     }
                 }
                 square = targetSquare;
@@ -193,24 +201,22 @@ export class Arbiter {
             }
         }
 
-        return [defender, attacker];
+        return [];
     }
 
-    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): PinMapping {
+    findPinnedPieces(square: number, state: (Piece | undefined)[], color: Color): AttackPath[] {
         // a bishop or a queen or a rook can each pin only 1 piece
         // this array is guaranteed to have unique pins
-        let defenders: number[] = [];
-        let attackers: number[] = [];
+        let attacks: AttackPath[] = [];
 
         for (const step of MOVE_CHECKS.QUEEN) {
-            const [defender, attacker] = this.checkForPinnedPieceInPath(square, step, state, color);
-            if ((defender !== -1) && (attacker !== -1)) {
-                defenders.push(defender);
-                attackers.push(attacker);
+            const attackPath = this.checkForPinnedPieceInPath(square, step, state, color);
+            if (attackPath.length > 0) {
+                attacks.push(attackPath);
             }
         }
 
-        return [defenders, attackers];
+        return attacks;
     }
 
     isOrthogonalStep(step: Step) {

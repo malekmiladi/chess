@@ -1,3 +1,5 @@
+import {AttackPath} from "./arbiter.js";
+
 export class Utils {
     static xToFile(x: number): string {
         return 'a' + x;
@@ -24,4 +26,24 @@ export class Utils {
         const y: number = Number(element?.getAttribute("y"));
         return [x, y];
     }
+
+    static thisIsPinned(square: number, pins: AttackPath[]): [isPinned: boolean, path: AttackPath] {
+        for (const attack of pins) {
+            if (attack.includes(square)) {
+                return [true, attack];
+            }
+        }
+        return [false, []]
+    }
+
+    static moveBlocksCheck(square: number, kChecks: AttackPath[]): boolean {
+        let blockCount = kChecks.length;
+        for (const path of kChecks) {
+            if (path.includes(square)) {
+                blockCount--;
+            }
+        }
+        return blockCount === 0;
+    }
+
 }

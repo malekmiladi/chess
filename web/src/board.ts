@@ -3,7 +3,7 @@ import {Notifier} from './notifier.js'
 import {Utils} from "./utils.js";
 import {GameEventType} from "./game-events.js";
 import {CustomStates} from "./custom-states.js";
-import {Arbiter} from "./arbiter.js";
+import {Arbiter, AttackPath} from "./arbiter.js";
 
 export enum CastleSide {
     KING_SIDE,
@@ -191,18 +191,17 @@ export class Board {
     updateLegalMoves(ignoreEnPassantForThisSquare: number | null, adjustLegalMovesForPins: boolean): void {
         this.resetTerritory();
 
-        const bkAttackers = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
-        const wkAttackers = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
+        // findKingAttackingPieces and findPinnedPieces should be different because for findPinnedPieces, we're checking individual
+        // rays, and not all legal moves of opponent pinning piece
+        const bkChecks = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
+        const wkChecks = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
-        let pinnedByWhite: number[] = [];
-        let whiteAttackers: number[] = [];
-
-        let pinnedByBlack: number[] = [];
-        let blackAttackers: number[] = [];
+        let pinnedByWhite: AttackPath[] = [];
+        let pinnedByBlack: AttackPath[] = [];
 
         if (adjustLegalMovesForPins) {
-            [pinnedByWhite, whiteAttackers] = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
-            [pinnedByBlack, blackAttackers] = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
+            pinnedByWhite = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
+            pinnedByBlack = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
         }
 
         for (let i: number = 0; i < 64; i++) {
@@ -218,9 +217,9 @@ export class Board {
 
                 // 1st call to get all legal moves while ignoring pins
                 if (piece.color === Color.WHITE) {
-                    piece.generateLegalMoves(i, this, pinnedByBlack, blackAttackers);
+                    piece.generateLegalMoves(i, this, pinnedByBlack, wkChecks);
                 } else {
-                    piece.generateLegalMoves(i, this, pinnedByWhite, whiteAttackers);
+                    piece.generateLegalMoves(i, this, pinnedByWhite, bkChecks);
                 }
 
                 const attackedSquares: number[] = piece.getAttackedSquares();
@@ -278,7 +277,6 @@ export class Board {
 
         return MoveType.MOVE;
     }
-
 
     handleCastleMove(move: Move, op: MoveOperation): void {
         switch (move.to) {

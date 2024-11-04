@@ -1,6 +1,6 @@
 import {Board, CastleSide} from "./board.js";
 import {Utils} from "./utils.js";
-import {MOVE_CHECKS} from "./arbiter.js";
+import {AttackPath, MOVE_CHECKS} from "./arbiter.js";
 import {Sprite, SPRITES} from "./sprites.js";
 
 export enum Color {
@@ -35,7 +35,7 @@ export interface Piece {
 
     getAttackedSquares(): number[];
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void;
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void;
 
     isLegalMove(to: number): boolean;
 }
@@ -88,37 +88,57 @@ export class Pawn implements Piece {
         return this.attackedSquares.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.attackedSquares = [];
         let pieceOnTheWay: boolean = false;
+
+        const [isPinned, path] = Utils.thisIsPinned(square, pins);
+        const kingInCheck = kChecks.length > 0;
+
         const [x, y]: [number, number] = Utils.toXY(square);
         for (let i: number = 0; i < this.moveChecks.length && !pieceOnTheWay; i++) {
             const step: Step = this.moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
+                let resolvesCheck = true;
+                let resolvesPin = true;
+                let resolvesCheckAndPin = true;
+
                 const targetSquare: number = Utils.toSquare(x1, y1);
                 const otherPiece: (Piece | undefined) = board.state[targetSquare];
-                const isDiagonalStep = step.y !== 0;
-                if (isDiagonalStep) {
-                    this.attackedSquares.push(targetSquare);
-                    if (otherPiece) {
-                        if (otherPiece.color !== this.color) {
-                            this.legalMoves.push(targetSquare);
-                        } else {
-                            this.defendedPieces.push(targetSquare);
-                        }
-                    }
-                } else {
-                    if (!otherPiece && !pieceOnTheWay) {
-                        const oneStepForward = Math.abs(step.x) === 1;
-                        const twoStepsForward = Math.abs(step.x) === 2;
-                        if (oneStepForward || (twoStepsForward && this.firstMove)) {
-                            this.legalMoves.push(targetSquare);
+
+                if (kingInCheck) {
+                    resolvesCheck = Utils.moveBlocksCheck(targetSquare, kChecks);
+                }
+                if (isPinned) {
+                    resolvesPin = path.includes(targetSquare);
+                }
+
+                resolvesCheckAndPin = resolvesCheck && resolvesPin;
+
+                if (resolvesCheckAndPin) {
+                    const isDiagonalStep = step.y !== 0;
+                    if (isDiagonalStep) {
+                        this.attackedSquares.push(targetSquare);
+                        if (otherPiece) {
+                            if (otherPiece.color !== this.color) {
+                                this.legalMoves.push(targetSquare);
+                            } else {
+                                this.defendedPieces.push(targetSquare);
+                            }
                         }
                     } else {
-                        pieceOnTheWay = true;
+                        if (!otherPiece && !pieceOnTheWay) {
+                            const oneStepForward = Math.abs(step.x) === 1;
+                            const twoStepsForward = Math.abs(step.x) === 2;
+                            if (oneStepForward || (twoStepsForward && this.firstMove)) {
+                                this.legalMoves.push(targetSquare);
+                            }
+                        } else {
+                            pieceOnTheWay = true;
+                        }
                     }
                 }
             }
@@ -131,14 +151,10 @@ export class Pawn implements Piece {
                 if (otherPiece) {
                     const isOpponent = otherPiece.color !== this.color;
                     const isPawn = otherPiece instanceof Pawn;
-                    if (isOpponent) {
-                        if (isPawn) {
-                            if (otherPiece.isEnPassant()) {
-                                const xIncrement = this.color === Color.BLACK ? 1 : -1;
-                                const enPassantSquare = Utils.toSquare(x1 + xIncrement, y1);
-                                this.legalMoves.push(enPassantSquare);
-                            }
-                        }
+                    if (isOpponent && isPawn && otherPiece.isEnPassant()) {
+                        const xIncrement = this.color === Color.BLACK ? 1 : -1;
+                        const enPassantSquare = Utils.toSquare(x1 + xIncrement, y1);
+                        this.legalMoves.push(enPassantSquare);
                     }
                 }
             }
@@ -237,12 +253,13 @@ export class King implements Piece {
         return castleMoves;
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         this.surroundingSquares = [];
         const adversary: Color = this.color === Color.BLACK ? Color.WHITE : Color.BLACK;
         const [x, y]: [number, number] = Utils.toXY(square);
+
         for (const step of this.moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
@@ -321,7 +338,7 @@ export class Queen implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -388,7 +405,7 @@ export class Bishop implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -419,7 +436,7 @@ export class Knight implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
@@ -504,7 +521,7 @@ export class Rook implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pinnedBy: number[], attackers: number[]): void {
+    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
