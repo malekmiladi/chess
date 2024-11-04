@@ -279,8 +279,11 @@ export class King implements Piece {
                 }
             }
         }
-        const castles: number[] = this.generateCastleMoves(board);
-        this.legalMoves = this.legalMoves.concat(castles);
+        const kingInCheck = kChecks.length > 0;
+        if (!kingInCheck) {
+            const castles: number[] = this.generateCastleMoves(board);
+            this.legalMoves = this.legalMoves.concat(castles);
+        }
     }
 
     isLegalMove(to: number): boolean {
