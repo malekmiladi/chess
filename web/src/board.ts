@@ -137,9 +137,9 @@ export class Board {
             square: -1
         };
 
-        // this.state = CustomStates.PinScenario();
+        this.state = CustomStates.PinScenario();
         // this.state = CustomStates.KingsQueenKnight();
-        this.initialize();
+        // this.initialize();
         this.updateLegalMoves(null, false);
     }
 

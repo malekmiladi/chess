@@ -40,6 +40,8 @@ export interface Piece {
     isLegalMove(to: number): boolean;
 }
 
+// TODO: rethink legal move generation cause the code is super messy
+
 export class Pawn implements Piece {
     private firstMove: boolean = true;
     private enPassantVulnerable: boolean = false;
@@ -207,12 +209,14 @@ export class King implements Piece {
         return this.surroundingSquares;
     }
 
-    getCastleSquare(rook: (Rook | undefined), boardState: (Piece | undefined)[], start: number, end: number, ks: boolean): number {
+    getCastleSquare(rook: (Rook | undefined), board: Board, start: number, end: number, ks: boolean): number {
         let pathObstructed: boolean = false;
+        const opponent = this.color === Color.WHITE ? Color.BLACK : Color.WHITE;
         if (rook?.isFirstMove()) {
             let i: number = start + 1;
             while (i < end && !pathObstructed) {
-                if (boardState[i] !== undefined) {
+                let pathUnderAttack: boolean = board.territory[i].has(opponent);
+                if ((board.state[i] !== undefined) || pathUnderAttack) {
                     pathObstructed = true;
                 }
                 i++;
@@ -238,13 +242,13 @@ export class King implements Piece {
             [qsStart, qsEnd] = board.getCastleRange(this.color, CastleSide.QUEEN_SIDE);
 
             const ksRook: (Piece | undefined) = board.state[ksEnd];
-            const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, board.state, ksStart, ksEnd, true);
+            const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, board, ksStart, ksEnd, true);
             if (ksCastleSquare !== -1) {
                 castleMoves.push(ksCastleSquare);
             }
 
             const qsRook: (Piece | undefined) = board.state[qsStart];
-            const qsCastleSquare = this.getCastleSquare(<Rook>qsRook, board.state, qsStart, qsEnd, false);
+            const qsCastleSquare = this.getCastleSquare(<Rook>qsRook, board, qsStart, qsEnd, false);
             if (qsCastleSquare !== -1) {
                 castleMoves.push(qsCastleSquare);
             }
