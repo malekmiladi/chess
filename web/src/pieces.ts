@@ -302,36 +302,55 @@ export class Queen implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
+
+        const [isPinned, path] = Utils.thisIsPinned(startSquare, pins);
+        const kingInCheck = kChecks.length > 0;
+
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
-                if (!piece) {
-                    if (!kingInPath) {
-                        this.legalMoves.push(square);
+
+                let resolvesCheck = true;
+                let resolvesPin = true;
+                let resolvesCheckAndPin = true;
+
+                if (kingInCheck) {
+                    resolvesCheck = Utils.moveBlocksCheck(square, kChecks);
+                }
+                if (isPinned) {
+                    resolvesPin = path.includes(square);
+                }
+
+                resolvesCheckAndPin = resolvesCheck && resolvesPin;
+
+                if (resolvesCheckAndPin) {
+                    if (!piece) {
+                        if (!kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     } else {
-                        this.defendedPieces.push(square);
-                    }
-                } else {
-                    if ((piece instanceof King) && (piece.color !== this.color)) {
-                        kingInPath = true;
-                    } else {
-                        stopWalking = true;
-                    }
-                    if (piece.color !== this.color && !kingInPath) {
-                        this.legalMoves.push(square);
-                    } else {
-                        this.defendedPieces.push(square);
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
+                            kingInPath = true;
+                        } else {
+                            stopWalking = true;
+                        }
+                        if (piece.color !== this.color && !kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     }
                 }
                 squareIndex = square;
-
             } else {
                 stopWalking = true;
             }
@@ -342,7 +361,7 @@ export class Queen implements Piece {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(square, step, board);
+            this.walkPath(square, step, board, pins, kChecks);
         }
     }
 
@@ -369,36 +388,55 @@ export class Bishop implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
+
+        const [isPinned, path] = Utils.thisIsPinned(startSquare, pins);
+        const kingInCheck = kChecks.length > 0;
+
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
-                if (!piece) {
-                    if (!kingInPath) {
-                        this.legalMoves.push(square);
+
+                let resolvesCheck = true;
+                let resolvesPin = true;
+                let resolvesCheckAndPin = true;
+
+                if (kingInCheck) {
+                    resolvesCheck = Utils.moveBlocksCheck(square, kChecks);
+                }
+                if (isPinned) {
+                    resolvesPin = path.includes(square);
+                }
+
+                resolvesCheckAndPin = resolvesCheck && resolvesPin;
+
+                if (resolvesCheckAndPin) {
+                    if (!piece) {
+                        if (!kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     } else {
-                        this.defendedPieces.push(square);
-                    }
-                } else {
-                    if ((piece instanceof King) && (piece.color !== this.color)) {
-                        kingInPath = true;
-                    } else {
-                        stopWalking = true;
-                    }
-                    if (piece.color !== this.color && !kingInPath) {
-                        this.legalMoves.push(square);
-                    } else {
-                        this.defendedPieces.push(square);
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
+                            kingInPath = true;
+                        } else {
+                            stopWalking = true;
+                        }
+                        if (piece.color !== this.color && !kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     }
                 }
                 squareIndex = square;
-
             } else {
                 stopWalking = true;
             }
@@ -409,7 +447,7 @@ export class Bishop implements Piece {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(square, step, board);
+            this.walkPath(square, step, board, pins, kChecks);
         }
     }
 
@@ -439,16 +477,36 @@ export class Knight implements Piece {
     generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
         this.legalMoves = [];
         this.defendedPieces = [];
+
+        const [isPinned, path] = Utils.thisIsPinned(square, pins);
+        const kingInCheck = kChecks.length > 0;
+
         for (const step of this.moveChecks) {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
-                if (!piece || (piece.color !== this.color)) {
-                    this.legalMoves.push(square);
-                } else if (piece.color === this.color) {
-                    this.defendedPieces.push(square);
+
+                let resolvesCheck = true;
+                let resolvesPin = true;
+                let resolvesCheckAndPin = true;
+
+                if (kingInCheck) {
+                    resolvesCheck = Utils.moveBlocksCheck(square, kChecks);
+                }
+                if (isPinned) {
+                    resolvesPin = path.includes(square);
+                }
+
+                resolvesCheckAndPin = resolvesCheck && resolvesPin;
+
+                if (resolvesCheckAndPin) {
+                    if (!piece || (piece.color !== this.color)) {
+                        this.legalMoves.push(square);
+                    } else if (piece.color === this.color) {
+                        this.defendedPieces.push(square);
+                    }
                 }
             }
         }
@@ -486,32 +544,52 @@ export class Rook implements Piece {
         return this.legalMoves.concat(this.defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board) {
+    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
+
+        const [isPinned, path] = Utils.thisIsPinned(startSquare, pins);
+        const kingInCheck = kChecks.length > 0;
+
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
                 const piece: (Piece | undefined) = board.state[square];
-                if (!piece) {
-                    if (!kingInPath) {
-                        this.legalMoves.push(square);
+
+                let resolvesCheck = true;
+                let resolvesPin = true;
+                let resolvesCheckAndPin = true;
+
+                if (kingInCheck) {
+                    resolvesCheck = Utils.moveBlocksCheck(square, kChecks);
+                }
+                if (isPinned) {
+                    resolvesPin = path.includes(square);
+                }
+
+                resolvesCheckAndPin = resolvesCheck && resolvesPin;
+
+                if (resolvesCheckAndPin) {
+                    if (!piece) {
+                        if (!kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     } else {
-                        this.defendedPieces.push(square);
-                    }
-                } else {
-                    if ((piece instanceof King) && (piece.color !== this.color)) {
-                        kingInPath = true;
-                    } else {
-                        stopWalking = true;
-                    }
-                    if (piece.color !== this.color && !kingInPath) {
-                        this.legalMoves.push(square);
-                    } else {
-                        this.defendedPieces.push(square);
+                        if ((piece instanceof King) && (piece.color !== this.color)) {
+                            kingInPath = true;
+                        } else {
+                            stopWalking = true;
+                        }
+                        if (piece.color !== this.color && !kingInPath) {
+                            this.legalMoves.push(square);
+                        } else {
+                            this.defendedPieces.push(square);
+                        }
                     }
                 }
                 squareIndex = square;
@@ -525,7 +603,7 @@ export class Rook implements Piece {
         this.legalMoves = [];
         this.defendedPieces = [];
         for (const step of this.moveChecks) {
-            this.walkPath(square, step, board);
+            this.walkPath(square, step, board, pins, kChecks);
         }
     }
 
