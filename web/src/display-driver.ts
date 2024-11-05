@@ -24,7 +24,7 @@ export class DisplayDriver {
         this.promotionBox.hidePopover();
     }
 
-        drawBoard(): void {
+    drawBoard(): void {
         let row: number = 0;
         while (row < 8) {
             let squareRow = document.createElement('div');
@@ -266,6 +266,26 @@ export class DisplayDriver {
             }
         });
 
+    }
+
+    checkKing(square: number): void {
+        const [x, y] = Utils.toXY(square);
+        const kingSquare = this.boardContainer.children[x].children[y] as HTMLDivElement;
+        let checkSpan = document.createElement("span");
+        checkSpan.classList.add("check");
+        kingSquare.appendChild(checkSpan);
+    }
+
+    clearCheck(square: number): void {
+        const [x, y] = Utils.toXY(square);
+        const kingSquare = this.boardContainer.children[x].children[y] as HTMLDivElement;
+        const children = kingSquare.children;
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i] as HTMLSpanElement;
+            if (child?.classList.contains("check")) {
+                kingSquare.removeChild(child as Node);
+            }
+        }
     }
 
 }

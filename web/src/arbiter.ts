@@ -4,6 +4,16 @@ import {Utils} from "./utils.js";
 
 export const MOVE_CHECKS = {
     PAWN: {
+        CHECK: {
+            B: [
+                {x: 1, y: 1},
+                {x: 1, y: -1}
+            ],
+            W: [
+                {x: -1, y: 1},
+                {x: -1, y: -1}
+            ]
+        },
         B: [
             {x: 1, y: 1},
             {x: 1, y: -1},
@@ -22,10 +32,6 @@ export const MOVE_CHECKS = {
         {x: 0, y: 1},
         {x: -1, y: 0},
         {x: 1, y: 0},
-        {x: 1, y: 1},
-        {x: 1, y: -1},
-        {x: -1, y: 1},
-        {x: -1, y: -1},
     ],
     BISHOP: [
         {x: -1, y: -1},
@@ -69,9 +75,19 @@ export type AttackPath = number[];
 
 export class Arbiter {
     notifier: Notifier;
+    moves: number;
+    threeFoldMoves: number;
+    the50ruleMoves: number;
+    wKInCheck: boolean;
+    bKInCheck: boolean;
 
     constructor(notifier: Notifier) {
         this.notifier = notifier;
+        this.wKInCheck = false;
+        this.bKInCheck = false;
+        this.moves = 0;
+        this.threeFoldMoves = 0;
+        this.the50ruleMoves = 0;
     }
 
     // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
@@ -105,16 +121,16 @@ export class Arbiter {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const targetSquare: number = Utils.toSquare(x1, y1);
-                const targetPiece: (Piece | undefined) = state[targetSquare];
+                const piece: (Piece | undefined) = state[targetSquare];
 
                 attack.push(targetSquare);
 
-                if (targetPiece) {
-                    const isOpponent = targetPiece.color !== color;
+                if (piece) {
+                    const isOpponent = piece.color !== color;
 
-                    const isRook = targetPiece instanceof Rook;
-                    const isBishop = targetPiece instanceof Bishop;
-                    const isQueen = targetPiece instanceof Queen;
+                    const isRook = piece instanceof Rook;
+                    const isBishop = piece instanceof Bishop;
+                    const isQueen = piece instanceof Queen;
 
                     const slidesDiagonally = this.isDiagonalStep(step) && (isBishop || isQueen);
                     const slidesOrthogonally = this.isOrthogonalStep(step) && (isRook || isQueen);
@@ -135,7 +151,7 @@ export class Arbiter {
 
     findKingAttackingPieces(square: number, state: (Piece | undefined)[], color: Color): AttackPath[] {
         const attackingPieces: AttackPath[] = [];
-        const pawnChecks = color === Color.BLACK ? MOVE_CHECKS.PAWN.B : MOVE_CHECKS.PAWN.W;
+        const pawnChecks = color === Color.BLACK ? MOVE_CHECKS.PAWN.CHECK.B : MOVE_CHECKS.PAWN.CHECK.W;
         const [x, y] = Utils.toXY(square);
         for (const step of [...pawnChecks, ...MOVE_CHECKS.KNIGHT]) {
             const attack = this.checkForAttackingPiece([x, y], step, color, state);

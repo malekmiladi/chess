@@ -17,9 +17,9 @@ export class Game implements Subscriber {
         this.ctx = ctx;
         this.notifier = new Notifier(this);
         this.arbiter = new Arbiter(this.notifier);
-        this.board = new Board(this.notifier, this.arbiter);
         this.displayDriver = new DisplayDriver(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
         this.whitesTurn = true;
+        this.board = new Board(this.notifier, this.arbiter);
     }
 
     run() {
@@ -55,6 +55,18 @@ export class Game implements Subscriber {
             }
             case GameEventType.PROMOTION_SUCCESS: {
                 this.displayDriver.applyPromotion(event.square, event.choice, event.color);
+                break;
+            }
+            case GameEventType.CHECK: {
+                this.displayDriver.checkKing(event.square);
+                break;
+            }
+            case GameEventType.CLEAR_CHECK: {
+                // TODO: work out a better way of doing this
+                if (this.arbiter.wKInCheck || this.arbiter.bKInCheck) {
+                    this.displayDriver.clearCheck(event.square);
+                }
+                break;
             }
         }
     }

@@ -8,6 +8,7 @@ export enum GameEventType {
     MOVE_PIECE,
     TAKE_PIECE,
     CHECK,
+    CLEAR_CHECK,
     UPDATE_DISPLAY,
     PROMOTION,
     PROMOTION_CHOICE,
@@ -50,4 +51,8 @@ export type GameEvent =
         square: number,
         choice: number,
         color: Color
+    }
+    | {
+        type: GameEventType.CLEAR_CHECK,
+        square: number
     }

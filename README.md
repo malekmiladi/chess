@@ -40,8 +40,8 @@ This project is a "hobby" project, it's a work in progress, and right now there'
 - [X] Implement en passant move
 - [X] Implement pawn promotion feature
 - [X] Implement castling
-- [ ] Implement pinned pieces logic
-- [ ] Implement check feature
+- [X] Implement pinned pieces logic
+- [X] Implement check feature
 - [ ] Implement checkmate
 - [ ] Implement player
 - [ ] Implement draw board for color feature

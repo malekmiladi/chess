@@ -337,26 +337,31 @@ export class Queen implements Piece {
 
                 resolvesCheckAndPin = resolvesCheck && resolvesPin;
 
-                if (resolvesCheckAndPin) {
-                    if (!piece) {
-                        if (!kingInPath) {
+                if (!piece) {
+                    if (!kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
+                        this.defendedPieces.push(square);
+                    }
+                } else {
+                    const isKing = piece instanceof King;
+                    const isOpponent = piece.color !== this.color;
+                    if (isOpponent && isKing) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (isOpponent && !kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
+                    } else {
+                        this.defendedPieces.push(square);
                     }
                 }
+
                 squareIndex = square;
             } else {
                 stopWalking = true;
@@ -423,26 +428,31 @@ export class Bishop implements Piece {
 
                 resolvesCheckAndPin = resolvesCheck && resolvesPin;
 
-                if (resolvesCheckAndPin) {
-                    if (!piece) {
-                        if (!kingInPath) {
+                if (!piece) {
+                    if (!kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
+                        this.defendedPieces.push(square);
+                    }
+                } else {
+                    const isKing = piece instanceof King;
+                    const isOpponent = piece.color !== this.color;
+                    if (isOpponent && isKing) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (isOpponent && !kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
+                    } else {
+                        this.defendedPieces.push(square);
                     }
                 }
+
                 squareIndex = square;
             } else {
                 stopWalking = true;
@@ -579,26 +589,31 @@ export class Rook implements Piece {
 
                 resolvesCheckAndPin = resolvesCheck && resolvesPin;
 
-                if (resolvesCheckAndPin) {
-                    if (!piece) {
-                        if (!kingInPath) {
+                if (!piece) {
+                    if (!kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
                     } else {
-                        if ((piece instanceof King) && (piece.color !== this.color)) {
-                            kingInPath = true;
-                        } else {
-                            stopWalking = true;
-                        }
-                        if (piece.color !== this.color && !kingInPath) {
+                        this.defendedPieces.push(square);
+                    }
+                } else {
+                    const isKing = piece instanceof King;
+                    const isOpponent = piece.color !== this.color;
+                    if (isOpponent && isKing) {
+                        kingInPath = true;
+                    } else {
+                        stopWalking = true;
+                    }
+                    if (isOpponent && !kingInPath) {
+                        if (resolvesCheckAndPin) {
                             this.legalMoves.push(square);
-                        } else {
-                            this.defendedPieces.push(square);
                         }
+                    } else {
+                        this.defendedPieces.push(square);
                     }
                 }
+
                 squareIndex = square;
             } else {
                 stopWalking = true;

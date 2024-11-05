@@ -132,7 +132,7 @@ export class Board {
         this.kings = {
             b: this.CASTLE_SQUARES.KS.B.KING.FROM,
             w: this.CASTLE_SQUARES.KS.W.KING.FROM
-        } as Kings
+        } as Kings;
         this.promotionInProgress = {
             square: -1
         };
@@ -140,7 +140,7 @@ export class Board {
         this.state = CustomStates.PinScenario();
         // this.state = CustomStates.KingsQueenKnight();
         // this.initialize();
-        this.updateLegalMoves(null, false);
+        this.updateLegalMoves(null);
     }
 
     initialize(): void {
@@ -188,7 +188,7 @@ export class Board {
     }
 
     // TODO: rename func variables...
-    updateLegalMoves(ignoreEnPassantForThisSquare: number | null, adjustLegalMovesForPins: boolean): void {
+    updateLegalMoves(ignoreEnPassantForThisSquare: number | null): void {
         this.resetTerritory();
 
         // findKingAttackingPieces and findPinnedPieces should be different because for findPinnedPieces, we're checking individual
@@ -196,13 +196,11 @@ export class Board {
         const bkChecks = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
         const wkChecks = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
-        let pinnedByWhite: AttackPath[] = [];
-        let pinnedByBlack: AttackPath[] = [];
+        const bkInCheck = bkChecks.length > 0;
+        const wkInCheck = wkChecks.length > 0;
 
-        if (adjustLegalMovesForPins) {
-            pinnedByWhite = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
-            pinnedByBlack = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
-        }
+        const pinnedByWhite: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
+        const pinnedByBlack: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
 
         for (let i: number = 0; i < 64; i++) {
             const piece = this.state[i];
@@ -243,8 +241,36 @@ export class Board {
             this.territory[square].add(Color.WHITE);
         }
 
-        wK.generateLegalMoves(this.kings.w, this, [], []);
-        bK.generateLegalMoves(this.kings.b, this, [], []);
+        wK.generateLegalMoves(this.kings.w, this, [], wkChecks);
+        bK.generateLegalMoves(this.kings.b, this, [], bkChecks);
+
+        if (bkInCheck) {
+            this.notifier.notify({
+                type: GameEventType.CHECK,
+                square: this.kings.b
+            });
+            this.arbiter.bKInCheck = true;
+        } else {
+            this.notifier.notify({
+                type: GameEventType.CLEAR_CHECK,
+                square: this.kings.b
+            });
+            this.arbiter.wKInCheck = false;
+        }
+
+        if (wkInCheck) {
+            this.notifier.notify({
+                type: GameEventType.CHECK,
+                square: this.kings.w
+            });
+            this.arbiter.wKInCheck = true;
+        } else {
+            this.notifier.notify({
+                type: GameEventType.CLEAR_CHECK,
+                square: this.kings.w
+            });
+            this.arbiter.wKInCheck = false;
+        }
 
     }
 
@@ -336,6 +362,7 @@ export class Board {
         const opponentPiece: (Piece | undefined) = this.state[move.to];
 
         if (piece && piece.isLegalMove(move.to)) {
+            this.arbiter.moves++;
 
             const isWhitesTurn: boolean = piece.color === Color.WHITE && whitesTurn;
             const isBlacksTurn: boolean = piece.color === Color.BLACK && !whitesTurn;
@@ -404,8 +431,11 @@ export class Board {
 
                 this.state[move.from] = undefined;
                 this.state[move.to] = piece;
-                this.updateLegalMoves(newEnPassant, false);
-                this.updateLegalMoves(newEnPassant, true);
+                this.updateLegalMoves(newEnPassant);
+
+                if (this.prevStates.includes(this.state)) {
+                    this.arbiter.threeFoldMoves++;
+                }
 
                 this.notifier.notify({
                     type: GameEventType.UPDATE_DISPLAY,
@@ -447,8 +477,7 @@ export class Board {
             }
         }
 
-        this.updateLegalMoves(null, false);
-        this.updateLegalMoves(null, true);
+        this.updateLegalMoves(null);
         this.promotionInProgress.square = -1;
         this.notifier.notify({
             type: GameEventType.PROMOTION_SUCCESS,
