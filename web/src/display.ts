@@ -1,16 +1,17 @@
-import {CastleMove, EnPassantMove, MoveOperation, MoveType, Promotions} from "./board.js";
+import {CastleMove, EnPassantMove, LegalMovesHighlightOptions, MoveOperation, MoveType, Promotions} from "./board.js";
 import {GameEventType} from "./game-events.js";
 import {Notifier} from "./notifier.js";
 import {Color, Move, Piece} from "./pieces.js";
 import {Utils} from "./utils.js";
 import {SPRITES} from "./sprites.js";
 
-export class DisplayDriver {
+export class Display {
 
     ctx: HTMLDivElement;
     notifier: Notifier;
     draggedPiece: number | null;
     highlightedSquares: number[];
+    selectedSquare: number;
     boardContainer: HTMLDivElement;
     promotionBox: HTMLDivElement;
 
@@ -21,6 +22,7 @@ export class DisplayDriver {
         this.notifier = notifier;
         this.draggedPiece = null;
         this.highlightedSquares = [];
+        this.selectedSquare = -1;
         this.promotionBox.hidePopover();
     }
 
@@ -39,7 +41,7 @@ export class DisplayDriver {
                 square.addEventListener("dragover", this.onDragOver);
                 square.addEventListener("dragend", this.onDragEnd);
                 square.addEventListener("drop", this.onDrop);
-                square.addEventListener("click", this.onClick);
+                square.addEventListener("pointerdown", this.onPointerDown);
                 if (row % 2 === 0) {
                     if (i % 2 === 0) {
                         square.classList.add("white");
@@ -80,7 +82,8 @@ export class DisplayDriver {
 
     onDrop = (e: Event): void => {
         e.stopPropagation();
-        this.removeHighlight();
+        this.removeHighlights();
+        this.selectedSquare = -1;
         let targetSquare: HTMLElement | null | undefined = <HTMLElement>e.target;
         if (targetSquare.classList.contains("piece")) {
             targetSquare = targetSquare.parentElement as HTMLDivElement;
@@ -96,12 +99,15 @@ export class DisplayDriver {
         });
     }
 
-    onClick = (e: Event): void => {
-        const square = e.currentTarget as HTMLElement;
-        const [x, y]: [number, number] = Utils.extractXYFromElement(square);
+    onPointerDown = (e: Event): void => {
+        const squareElement = e.currentTarget as HTMLElement;
+        const [x, y]: [number, number] = Utils.extractXYFromElement(squareElement);
+        const square = Utils.toSquare(x, y);
+        this.removeHighlights();
+        this.selectedSquare = square;
         this.notifier.notify({
             type: GameEventType.HIGHLIGHT_LEGAL_MOVES,
-            square: Utils.toSquare(x, y)
+            square: square
         });
     }
 
@@ -129,7 +135,7 @@ export class DisplayDriver {
     }
 
     applyMove(op: MoveOperation): void {
-        this.removeHighlight();
+        this.removeHighlights();
         const from: number = op.action.move.from;
         const [x, y]: [number, number] = Utils.toXY(from);
         const fromSquare: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
@@ -241,19 +247,31 @@ export class DisplayDriver {
         }
     }
 
-    highlightLegalMoves(legalMoves: number[]): void {
-        this.removeHighlight();
-        this.highlightedSquares = legalMoves;
-        legalMoves.forEach((square: number) => {
+    toggleHighLights(legalMovesOptions: LegalMovesHighlightOptions): void {
+        this.removeHighlights();
+        this.highlightedSquares = legalMovesOptions.legalMoves;
+        this.highlightedSquares.forEach((square: number) => {
             const [x, y]: [number, number] = Utils.toXY(square);
             const squareElement: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
             let dot = document.createElement("span");
             dot.classList.add("legal-move");
             squareElement.appendChild(dot);
         });
+
+        if ((this.selectedSquare !== -1) && (legalMovesOptions.hasPiece)) {
+            this.highlightSelectedSquare();
+        } else {
+            this.selectedSquare = -1;
+        }
     }
 
-    removeHighlight(): void {
+
+    removeHighlights(): void {
+        this.removeSquareHighlight();
+        this.removeLegalMovesHighlight();
+    }
+
+    removeLegalMovesHighlight() {
         this.highlightedSquares.forEach((square: number) => {
             const [x, y]: [number, number] = Utils.toXY(square);
             const squareElement: HTMLDivElement = this.boardContainer.children[x].children[y] as HTMLDivElement;
@@ -265,7 +283,6 @@ export class DisplayDriver {
                 }
             }
         });
-
     }
 
     checkKing(square: number): void {
@@ -284,6 +301,31 @@ export class DisplayDriver {
             const child = children[i] as HTMLSpanElement;
             if (child?.classList.contains("check")) {
                 kingSquare.removeChild(child as Node);
+            }
+        }
+    }
+
+    highlightSelectedSquare(): void {
+        const [selectedSquareX, selectedSquareY] = Utils.toXY(this.selectedSquare);
+        const squareElement: HTMLDivElement = this.boardContainer.children[selectedSquareX].children[selectedSquareY] as HTMLDivElement;
+        let highlightSpan = document.createElement("span");
+        highlightSpan.classList.add("highlight");
+        squareElement.appendChild(highlightSpan);
+    }
+
+    removeSquareHighlight(): void {
+        let [selectedSquareX, selectedSquareY]: [number, number] = [-1, -1];
+        if (this.selectedSquare !== -1) {
+            [selectedSquareX, selectedSquareY] = Utils.toXY(this.selectedSquare);
+        }
+        if (selectedSquareX !== -1 && selectedSquareY !== -1) {
+            const squareElement: HTMLDivElement = this.boardContainer.children[selectedSquareX].children[selectedSquareY] as HTMLDivElement;
+            const squareExtras = squareElement.children;
+            for (let i = 0; i < squareExtras.length; i++) {
+                const child = squareExtras[i] as HTMLSpanElement;
+                if (child?.classList.contains("highlight")) {
+                    squareElement.removeChild(child as Node);
+                }
             }
         }
     }

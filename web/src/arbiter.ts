@@ -93,8 +93,9 @@ export class Arbiter {
     // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
     //       check if state is legal, if not revert back to previous state)
 
-    checkForAttackingPiece([x, y]: [number, number], step: Step, color: Color, state: (Piece | undefined)[]): AttackPath {
+    checkForAttackingPiece([x, y]: [number, number], step: Step, color: Color, state: (Piece | undefined)[], forPawn: boolean): AttackPath {
         const [x1, y1] = [x + step.x, y + step.y];
+
         let attack: AttackPath = [];
         if (Utils.xyWithingBounds(x1, y1)) {
             const targetSquare = Utils.toSquare(x1, y1);
@@ -104,7 +105,10 @@ export class Arbiter {
                 const isPawn = piece instanceof Pawn;
                 const isKnight = piece instanceof Knight;
 
-                if (isOpponent && (isPawn || isKnight)) {
+                const isKnightMove = !forPawn && (isOpponent && isKnight);
+                const isPawnMove = forPawn && (isOpponent && isPawn)
+
+                if (isKnightMove || isPawnMove) {
                     attack.push(targetSquare);
                 }
             }
@@ -153,8 +157,14 @@ export class Arbiter {
         const attackingPieces: AttackPath[] = [];
         const pawnChecks = color === Color.BLACK ? MOVE_CHECKS.PAWN.CHECK.B : MOVE_CHECKS.PAWN.CHECK.W;
         const [x, y] = Utils.toXY(square);
-        for (const step of [...pawnChecks, ...MOVE_CHECKS.KNIGHT]) {
-            const attack = this.checkForAttackingPiece([x, y], step, color, state);
+        for (const step of pawnChecks) {
+            const attack = this.checkForAttackingPiece([x, y], step, color, state, true);
+            if (attack.length > 0) {
+                attackingPieces.push(attack);
+            }
+        }
+        for (const step of MOVE_CHECKS.KNIGHT) {
+            const attack = this.checkForAttackingPiece([x, y], step, color, state, false);
             if (attack.length > 0) {
                 attackingPieces.push(attack);
             }

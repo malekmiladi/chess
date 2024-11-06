@@ -42,7 +42,6 @@ This project is a "hobby" project, it's a work in progress, and right now there'
 - [X] Implement castling
 - [X] Implement pinned pieces logic
 - [X] Implement check feature
-- [ ] Implement checkmate
 - [ ] Implement player
 - [ ] Implement draw board for color feature
 - [ ] Implement websocket messaging with backend
@@ -53,6 +52,9 @@ This project is a "hobby" project, it's a work in progress, and right now there'
 
 ### Backend
 
+- [ ] Implement threefold repetition rule
+- [ ] Implement 50 move with no capture and no pawn move rule
+- [ ] Implement checkmate
 - [ ] Implement new state validation
 - [ ] Implement game rooms/sessions
 - [ ] Implement timer

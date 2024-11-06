@@ -1,5 +1,5 @@
-import {Board} from "./board.js";
-import {DisplayDriver} from "./display-driver.js";
+import {Board, LegalMovesHighlightOptions} from "./board.js";
+import {Display} from "./display.js";
 import {GameEvent, GameEventType} from "./game-events.js";
 import {Notifier, Subscriber} from "./notifier.js";
 import {Arbiter} from "./arbiter.js";
@@ -10,14 +10,14 @@ export class Game implements Subscriber {
     notifier: Notifier;
     board: Board;
     arbiter: Arbiter;
-    displayDriver: DisplayDriver;
+    displayDriver: Display;
     whitesTurn: boolean;
 
     constructor(ctx: HTMLDivElement) {
         this.ctx = ctx;
         this.notifier = new Notifier(this);
         this.arbiter = new Arbiter(this.notifier);
-        this.displayDriver = new DisplayDriver(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
+        this.displayDriver = new Display(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
         this.whitesTurn = true;
         this.board = new Board(this.notifier, this.arbiter);
     }
@@ -36,8 +36,8 @@ export class Game implements Subscriber {
                 break;
             }
             case GameEventType.HIGHLIGHT_LEGAL_MOVES: {
-                const legalMoves: number[] = this.board.getLegalMoves(event.square);
-                this.displayDriver.highlightLegalMoves(legalMoves);
+                const legalMovesHighlightOptions: LegalMovesHighlightOptions = this.board.getLegalMoves(event.square);
+                this.displayDriver.toggleHighLights(legalMovesHighlightOptions);
                 break;
             }
             case GameEventType.UPDATE_DISPLAY: {

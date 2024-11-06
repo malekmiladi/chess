@@ -63,6 +63,18 @@ body {
     background-color: rgba(108, 9, 9, 0.8);
 }
 
+.highlight {
+    position: absolute;
+    z-index: 8;
+    width: 100px;
+    height: 100px;
+    top: 0;
+    left: 0;
+    align-content: center;
+    text-align: center;
+    background-color: rgba(53, 147, 49, 0.68);
+}
+
 .square, .piece {
     width: 100px;
     height: 100px;

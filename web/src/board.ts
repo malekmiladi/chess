@@ -10,6 +10,11 @@ export enum CastleSide {
     QUEEN_SIDE
 }
 
+export type LegalMovesHighlightOptions = {
+    legalMoves: number[];
+    hasPiece: boolean;
+}
+
 export enum MoveType {
     MOVE,
     TAKE,
@@ -255,7 +260,7 @@ export class Board {
                 type: GameEventType.CLEAR_CHECK,
                 square: this.kings.b
             });
-            this.arbiter.wKInCheck = false;
+            this.arbiter.bKInCheck = false;
         }
 
         if (wkInCheck) {
@@ -491,13 +496,17 @@ export class Board {
         this.state[to] = undefined;
     }
 
-    getLegalMoves(square: number): number[] {
-        let legalMoves: number[] = [];
+    getLegalMoves(square: number): LegalMovesHighlightOptions {
+        let pieceHighlightOptions: LegalMovesHighlightOptions = {
+            legalMoves: [],
+            hasPiece: false
+        }
         const piece: (Piece | undefined) = this.state[square];
         if (piece) {
-            legalMoves = piece.legalMoves;
+            pieceHighlightOptions.legalMoves = piece.legalMoves;
+            pieceHighlightOptions.hasPiece = true;
         }
-        return legalMoves;
+        return pieceHighlightOptions;
     }
 
     getCurrentState(): (Piece | undefined)[] {
