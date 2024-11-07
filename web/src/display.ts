@@ -123,11 +123,12 @@ export class Display {
         square.appendChild(pieceObject);
     }
 
-    drawPieces(state: (Piece | undefined)[]): void {
+    drawPieces(playAsWhite: boolean, state: (Piece | undefined)[]): void {
         for (let i: number = 0; i < 64; i++) {
+            const adjustedSquare = playAsWhite ? i : Math.abs(i - 63);
             const [x, y]: [number, number] = Utils.toXY(i);
             const square = this.boardContainer.children[x].children[y];
-            const piece: (Piece | undefined) = state[i];
+            const piece: (Piece | undefined) = state[adjustedSquare];
             if (piece) {
                 this.createPiece(square, piece);
             }

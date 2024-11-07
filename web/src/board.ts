@@ -3,6 +3,8 @@ import {Notifier} from './notifier.js'
 import {Utils} from "./utils.js";
 import {GameEventType} from "./game-events.js";
 import {Arbiter, AttackPath} from "./arbiter.js";
+import {GameState} from "./game.js";
+import {CustomStates} from "./custom-states.js";
 
 export enum CastleSide {
     KING_SIDE,
@@ -72,46 +74,94 @@ export enum Promotions {
 
 export const CASTLE_SQUARES = {
     QS: {
-        B: {
-            KING: {
-                FROM: 4,
-                TO: 2
+        AS_WHITE: {
+            B: {
+                KING: {
+                    FROM: 4,
+                    TO: 2
+                },
+                ROOK: {
+                    FROM: 0,
+                    TO: 3
+                }
             },
-            ROOK: {
-                FROM: 0,
-                TO: 3
+            W: {
+                KING: {
+                    FROM: 60,
+                    TO: 58
+                },
+                ROOK: {
+                    FROM: 56,
+                    TO: 59
+                }
             }
         },
-        W: {
-            KING: {
-                FROM: 60,
-                TO: 58
+        AS_BLACK: {
+            W: {
+                KING: {
+                    FROM: 3,
+                    TO: 1
+                },
+                ROOK: {
+                    FROM: 0,
+                    TO: 2
+                }
             },
-            ROOK: {
-                FROM: 56,
-                TO: 59
+            B: {
+                KING: {
+                    FROM: 3,
+                    TO: 5
+                },
+                ROOK: {
+                    FROM: 7,
+                    TO: 4
+                }
             }
         }
     },
     KS: {
-        B: {
-            KING: {
-                FROM: 4,
-                TO: 6
+        AS_WHITE: {
+            B: {
+                KING: {
+                    FROM: 4,
+                    TO: 6
+                },
+                ROOK: {
+                    FROM: 7,
+                    TO: 5
+                }
             },
-            ROOK: {
-                FROM: 7,
-                TO: 5
+            W: {
+                KING: {
+                    FROM: 60,
+                    TO: 62
+                },
+                ROOK: {
+                    FROM: 63,
+                    TO: 61
+                }
             }
         },
-        W: {
-            KING: {
-                FROM: 60,
-                TO: 62
+        AS_BLACK: {
+            W: {
+                KING: {
+                    FROM: 59,
+                    TO: 57
+                },
+                ROOK: {
+                    FROM: 56,
+                    TO: 58
+                }
             },
-            ROOK: {
-                FROM: 63,
-                TO: 61
+            B: {
+                KING: {
+                    FROM: 59,
+                    TO: 61
+                },
+                ROOK: {
+                    FROM: 63,
+                    TO: 60
+                }
             }
         }
     }
@@ -125,7 +175,7 @@ export class Board {
     prevStates: (Piece | undefined)[][];
     territory: Set<number>[];
     kings: Kings;
-    promotionInProgress: { square: number };
+    promotionInProgress: { square: number, forWhite: boolean };
 
     constructor(notifier: Notifier, arbiter: Arbiter) {
         this.territory = [];
@@ -134,15 +184,17 @@ export class Board {
         this.notifier = notifier;
         this.arbiter = arbiter;
         this.kings = {
-            b: CASTLE_SQUARES.KS.B.KING.FROM,
-            w: CASTLE_SQUARES.KS.W.KING.FROM
+            b: CASTLE_SQUARES.KS.AS_WHITE.B.KING.FROM,
+            w: CASTLE_SQUARES.KS.AS_WHITE.W.KING.FROM
         } as Kings;
         this.promotionInProgress = {
-            square: -1
+            square: -1,
+            forWhite: true
         };
 
-        this.initialize();
-        this.updateLegalMoves(null);
+        this.state = CustomStates.Castles();
+        //this.initialize();
+        this.updateLegalMoves(null, true);
     }
 
     initialize(): void {
@@ -184,8 +236,8 @@ export class Board {
             this.territory.push(new Set());
         }
     }
-    
-    updateLegalMoves(ignoreSquare: number | null): void {
+
+    updateLegalMoves(ignoreSquare: number | null, playAsWhite: boolean): void {
         this.resetTerritory();
 
         // REMEMBER findKingAttackingPieces and findPinnedPieces should be different because for findPinnedPieces,
@@ -199,17 +251,18 @@ export class Board {
         const pinnedByWhite: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
         const pinnedByBlack: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
 
-        const moveGenOpts: MoveGenOptions = { state: this.state, territory: this.territory };
+        const moveGenOpts: MoveGenOptions = {state: this.state, territory: this.territory};
 
         for (let i: number = 0; i < 64; i++) {
+
             const piece = this.state[i];
 
             if (piece) {
                 const isPawn = piece instanceof Pawn;
-                const isEnPassantVulnerable = isPawn && (ignoreSquare !== i) && (<Pawn>piece).enPassantVulnerable;
+                const isEnPassantVulnerable = isPawn && (ignoreSquare !== i) && piece.enPassantVulnerable;
 
                 if (isEnPassantVulnerable) {
-                    (<Pawn>piece).enPassantVulnerable = false;
+                    piece.enPassantVulnerable = false;
                 }
 
                 if (piece.color === Color.WHITE) {
@@ -242,16 +295,27 @@ export class Board {
         wK.generateLegalMoves(this.kings.w, this, [], wkChecks);
         bK.generateLegalMoves(this.kings.b, this, [], bkChecks);
 
+        let adjustedBKSquare: number;
+        let adjustedWKSquare: number;
+
+        if (playAsWhite) {
+            adjustedWKSquare = Utils.adjustSquareFor(Color.WHITE, this.kings.b);
+            adjustedBKSquare = Utils.adjustSquareFor(Color.WHITE, this.kings.b);
+        } else {
+            adjustedBKSquare = Utils.adjustSquareFor(Color.BLACK, this.kings.b);
+            adjustedWKSquare = Utils.adjustSquareFor(Color.BLACK, this.kings.w);
+        }
+
         if (bkInCheck) {
             this.notifier.notify({
                 type: GameEventType.CHECK,
-                square: this.kings.b
+                square: adjustedBKSquare
             });
             this.arbiter.bKInCheck = true;
         } else {
             this.notifier.notify({
                 type: GameEventType.CLEAR_CHECK,
-                square: this.kings.b
+                square: adjustedBKSquare
             });
             this.arbiter.bKInCheck = false;
         }
@@ -259,13 +323,13 @@ export class Board {
         if (wkInCheck) {
             this.notifier.notify({
                 type: GameEventType.CHECK,
-                square: this.kings.w
+                square: adjustedWKSquare
             });
             this.arbiter.wKInCheck = true;
         } else {
             this.notifier.notify({
                 type: GameEventType.CLEAR_CHECK,
-                square: this.kings.w
+                square: adjustedWKSquare
             });
             this.arbiter.wKInCheck = false;
         }
@@ -302,52 +366,56 @@ export class Board {
         return MoveType.MOVE;
     }
 
-    handleCastleMove(move: Move, op: MoveOperation): void {
+    getCastleSquares(move: Move): Move {
+        let from: number;
+        let to: number;
+
         switch (move.to) {
-            case CASTLE_SQUARES.QS.B.KING.TO:
-                op.action = {
-                    rook: {
-                        from: CASTLE_SQUARES.QS.B.ROOK.FROM,
-                        to: CASTLE_SQUARES.QS.B.ROOK.TO
-                    },
-                    move: move
-                };
+            case CASTLE_SQUARES.QS.AS_WHITE.B.KING.TO:
+                from = CASTLE_SQUARES.QS.AS_WHITE.B.ROOK.FROM;
+                to = CASTLE_SQUARES.QS.AS_WHITE.B.ROOK.TO;
                 break
-            case CASTLE_SQUARES.KS.B.KING.TO:
-                op.action = {
-                    rook: {
-                        from: CASTLE_SQUARES.KS.B.ROOK.FROM,
-                        to: CASTLE_SQUARES.KS.B.ROOK.TO
-                    },
-                    move: move
-                };
+            case CASTLE_SQUARES.KS.AS_WHITE.B.KING.TO:
+                from = CASTLE_SQUARES.KS.AS_WHITE.B.ROOK.FROM;
+                to = CASTLE_SQUARES.KS.AS_WHITE.B.ROOK.TO;
                 break
-            case CASTLE_SQUARES.QS.W.KING.TO:
-                op.action = {
-                    rook: {
-                        from: CASTLE_SQUARES.QS.W.ROOK.FROM,
-                        to: CASTLE_SQUARES.QS.W.ROOK.TO
-                    },
-                    move: move
-                };
+            case CASTLE_SQUARES.QS.AS_WHITE.W.KING.TO:
+                from = CASTLE_SQUARES.QS.AS_WHITE.W.ROOK.FROM;
+                to = CASTLE_SQUARES.QS.AS_WHITE.W.ROOK.TO;
                 break;
-            case CASTLE_SQUARES.KS.W.KING.TO:
-                op.action = {
-                    rook: {
-                        from: CASTLE_SQUARES.KS.W.ROOK.FROM,
-                        to: CASTLE_SQUARES.KS.W.ROOK.TO
-                    },
-                    move: move
-                };
+            case CASTLE_SQUARES.KS.AS_WHITE.W.KING.TO:
+                from = CASTLE_SQUARES.KS.AS_WHITE.W.ROOK.FROM;
+                to = CASTLE_SQUARES.KS.AS_WHITE.W.ROOK.TO;
+                break;
+
+            case CASTLE_SQUARES.QS.AS_BLACK.B.KING.TO:
+                from = CASTLE_SQUARES.QS.AS_BLACK.B.ROOK.FROM;
+                to = CASTLE_SQUARES.QS.AS_BLACK.B.ROOK.TO;
+                break
+            case CASTLE_SQUARES.KS.AS_BLACK.B.KING.TO:
+                from = CASTLE_SQUARES.KS.AS_BLACK.B.ROOK.FROM;
+                to = CASTLE_SQUARES.KS.AS_BLACK.B.ROOK.TO;
+                break
+            case CASTLE_SQUARES.QS.AS_BLACK.W.KING.TO:
+                from = CASTLE_SQUARES.QS.AS_BLACK.W.ROOK.FROM;
+                to = CASTLE_SQUARES.QS.AS_BLACK.W.ROOK.TO;
+                break;
+            case CASTLE_SQUARES.KS.AS_BLACK.W.KING.TO:
+                from = CASTLE_SQUARES.KS.AS_BLACK.W.ROOK.FROM;
+                to = CASTLE_SQUARES.KS.AS_BLACK.W.ROOK.TO;
+                break;
+
+
+            default:
+                from = move.from;
+                to = move.to;
                 break;
         }
-        const action = <CastleMove>op.action;
-        const rook: Rook = <Rook>this.state[action.rook.from];
-        this.state[action.rook.from] = undefined;
-        this.state[action.rook.to] = rook;
+
+        return {from: from, to: to};
     }
 
-    movePiece(move: Move, whitesTurn: boolean): void {
+    movePiece(move: Move, gameState: GameState): void {
 
         let op: MoveOperation = {
             type: MoveType.MOVE,
@@ -356,50 +424,60 @@ export class Board {
             }
         };
 
-        const piece: (Piece | undefined) = this.state[move.from];
-        const opponentPiece: (Piece | undefined) = this.state[move.to];
+        const adjustedMove: Move = gameState.playAsWhite ? move : Utils.adjustMoveFor(Color.BLACK, move);
 
-        if (piece && piece.isLegalMove(move.to)) {
+        const piece: (Piece | undefined) = this.state[adjustedMove.from];
+        const opponentPiece: (Piece | undefined) = this.state[adjustedMove.to];
+
+        if (piece && piece.isLegalMove(adjustedMove.to)) {
             this.arbiter.moves++;
 
-            const isWhitesTurn: boolean = piece.color === Color.WHITE && whitesTurn;
-            const isBlacksTurn: boolean = piece.color === Color.BLACK && !whitesTurn;
+            const isWhitesTurn: boolean = piece.color === Color.WHITE && gameState.whiteTurn;
+            const isBlacksTurn: boolean = piece.color === Color.BLACK && !gameState.whiteTurn;
 
             if (isWhitesTurn || isBlacksTurn) {
 
                 this.prevStates.push([...this.state]);
 
-                const [xFrom,] = Utils.toXY(move.from);
-                const [xTo, yTo] = Utils.toXY(move.to);
+                const [xFrom,] = Utils.toXY(adjustedMove.from);
+                const [xTo, yTo] = Utils.toXY(adjustedMove.to);
 
-                op.type = this.determineMoveType(piece, opponentPiece, move);
+                op.type = this.determineMoveType(piece, opponentPiece, adjustedMove);
                 let newEnPassant: number | null = null;
 
                 switch (op.type) {
                     case MoveType.TAKE: {
-                        this.takePiece(move.to);
+                        this.takePiece(adjustedMove.to);
                         break;
                     }
                     case MoveType.CASTLE: {
-                        this.handleCastleMove(move, op);
+                        const castleSquares = this.getCastleSquares(move);
+                        const adjustedCastleSquares = this.getCastleSquares(adjustedMove);
+                        op.action.move = move;
+                        (<CastleMove>op.action).rook = castleSquares;
+                        const rook: Rook = <Rook>this.state[adjustedCastleSquares.from];
+                        this.state[adjustedCastleSquares.from] = undefined;
+                        this.state[adjustedCastleSquares.to] = rook;
                         break;
                     }
                     case MoveType.EN_PASSANT: {
                         const xIncrement = piece.color === Color.BLACK ? -1 : 1;
                         const opponentSquare = Utils.toSquare(xTo + xIncrement, yTo);
+                        const adjustedOpponentSquare = gameState.playAsWhite ? opponentSquare : Utils.adjustSquareFor(Color.BLACK, opponentSquare);
                         this.takePiece(opponentSquare);
                         op.action = {
                             move: move,
-                            opponent: opponentSquare
+                            opponent: adjustedOpponentSquare
                         }
                         break;
                     }
                     case MoveType.PROMOTION:
                     case MoveType.PROMOTION_AND_TAKE: {
                         if (opponentPiece) {
-                            this.takePiece(move.to);
+                            this.takePiece(adjustedMove.to);
                         }
-                        this.promotionInProgress.square = move.to;
+                        this.promotionInProgress.square = adjustedMove.to;
+                        this.promotionInProgress.forWhite = gameState.playAsWhite;
                         break;
                     }
                 }
@@ -414,26 +492,22 @@ export class Board {
                     }
                     if (isKing) {
                         if (piece.color === Color.BLACK) {
-                            this.kings.b = move.to;
+                            this.kings.b = adjustedMove.to;
                         } else {
-                            this.kings.w = move.to;
+                            this.kings.w = adjustedMove.to;
                         }
                     }
                 }
 
                 const pawn2SquaresMove = Math.abs(xTo - xFrom) === 2;
                 if (isPawn && pawn2SquaresMove) {
-                    (<Pawn>piece).enPassantVulnerable = true;
-                    newEnPassant = move.to;
+                    piece.enPassantVulnerable = true;
+                    newEnPassant = adjustedMove.to;
                 }
 
-                this.state[move.from] = undefined;
-                this.state[move.to] = piece;
-                this.updateLegalMoves(newEnPassant);
-
-                if (this.prevStates.includes(this.state)) {
-                    this.arbiter.threeFoldMoves++;
-                }
+                this.state[adjustedMove.from] = undefined;
+                this.state[adjustedMove.to] = piece;
+                this.updateLegalMoves(newEnPassant, gameState.playAsWhite);
 
                 this.notifier.notify({
                     type: GameEventType.UPDATE_DISPLAY,
@@ -448,9 +522,10 @@ export class Board {
                 }
             }
         }
+        console.log(this.state);
     }
 
-    promotePiece(choice: number) {
+    promotePiece(choice: number, playAsWhite: boolean) {
         let pawn = <Pawn>this.state[this.promotionInProgress.square];
         const promotionSquare = this.promotionInProgress.square;
 
@@ -475,11 +550,12 @@ export class Board {
             }
         }
 
-        this.updateLegalMoves(null);
+        this.updateLegalMoves(null, playAsWhite);
         this.promotionInProgress.square = -1;
+        const adjustedPromotionSquare = this.promotionInProgress.forWhite ? promotionSquare : Utils.adjustSquareFor(Color.BLACK, promotionSquare);
         this.notifier.notify({
             type: GameEventType.PROMOTION_SUCCESS,
-            square: promotionSquare,
+            square: adjustedPromotionSquare,
             choice: choice,
             color: pawn.color
         })
@@ -489,14 +565,15 @@ export class Board {
         this.state[to] = undefined;
     }
 
-    getLegalMoves(square: number): LegalMovesHighlightOptions {
+    getLegalMoves(square: number, forWhite: boolean): LegalMovesHighlightOptions {
         let pieceHighlightOptions: LegalMovesHighlightOptions = {
             legalMoves: [],
             hasPiece: false
         }
-        const piece: (Piece | undefined) = this.state[square];
+        const adjustedSquare = forWhite ? square : Utils.adjustSquareFor(Color.BLACK, square);
+        const piece: (Piece | undefined) = this.state[adjustedSquare];
         if (piece) {
-            pieceHighlightOptions.legalMoves = piece.legalMoves;
+            pieceHighlightOptions.legalMoves = forWhite ? piece.legalMoves : Utils.adjustLegalMoves(Color.BLACK, piece.legalMoves);
             pieceHighlightOptions.hasPiece = true;
         }
         return pieceHighlightOptions;

@@ -1,4 +1,4 @@
-import {Board, CastleSide} from "./board.js";
+import {CastleSide} from "./board.js";
 import {Utils} from "./utils.js";
 import {AttackPath, MOVE_CHECKS} from "./arbiter.js";
 import {Sprite, SPRITES} from "./sprites.js";
@@ -185,7 +185,7 @@ export class Pawn implements Piece {
                 if (otherPiece) {
                     const isOpponent = otherPiece.color !== this.color;
                     const isPawn = otherPiece instanceof Pawn;
-                    if (isOpponent && isPawn && (<Pawn>otherPiece).enPassantVulnerable) {
+                    if (isOpponent && isPawn && otherPiece.enPassantVulnerable) {
                         const xIncrement = this.color === Color.BLACK ? 1 : -1;
                         const enPassantSquare = Utils.toSquare(x1 + xIncrement, y1);
                         this._legalMoves.push(enPassantSquare);

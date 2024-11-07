@@ -3,6 +3,12 @@ import {Display} from "./display.js";
 import {GameEvent, GameEventType} from "./game-events.js";
 import {Notifier, Subscriber} from "./notifier.js";
 import {Arbiter} from "./arbiter.js";
+import {Color} from "./pieces.js";
+
+export type GameState = {
+    whiteTurn: boolean;
+    playAsWhite: boolean;
+}
 
 export class Game implements Subscriber {
 
@@ -11,37 +17,38 @@ export class Game implements Subscriber {
     board: Board;
     arbiter: Arbiter;
     displayDriver: Display;
-    whitesTurn: boolean;
+    state: GameState;
 
     constructor(ctx: HTMLDivElement) {
         this.ctx = ctx;
+        this.state = { whiteTurn: true, playAsWhite: true };
         this.notifier = new Notifier(this);
         this.arbiter = new Arbiter(this.notifier);
         this.displayDriver = new Display(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
-        this.whitesTurn = true;
         this.board = new Board(this.notifier, this.arbiter);
     }
 
     run() {
+        this.state.playAsWhite = false;
         this.displayDriver.drawBoard();
-        this.displayDriver.drawPieces(this.board.getCurrentState());
+        this.displayDriver.drawPieces(this.state.playAsWhite, this.board.getCurrentState());
     }
 
     update(event: GameEvent) {
         switch (event.type) {
             case GameEventType.MOVE_PIECE: {
                 if (event.move.from !== event.move.to) {
-                    this.board.movePiece(event.move, this.whitesTurn);
+                    this.board.movePiece(event.move, this.state);
                 }
                 break;
             }
             case GameEventType.HIGHLIGHT_LEGAL_MOVES: {
-                const legalMovesHighlightOptions: LegalMovesHighlightOptions = this.board.getLegalMoves(event.square);
+                const legalMovesHighlightOptions: LegalMovesHighlightOptions = this.board.getLegalMoves(event.square, this.state.playAsWhite);
                 this.displayDriver.toggleHighLights(legalMovesHighlightOptions);
                 break;
             }
             case GameEventType.UPDATE_DISPLAY: {
-                this.whitesTurn = !this.whitesTurn;
+                this.state.whiteTurn = !this.state.whiteTurn;
                 this.displayDriver.applyMove(event.op);
                 break;
             }
@@ -50,7 +57,7 @@ export class Game implements Subscriber {
                 break;
             }
             case GameEventType.PROMOTION_CHOICE: {
-                this.board.promotePiece(event.choice);
+                this.board.promotePiece(event.choice, this.state.playAsWhite);
                 break;
             }
             case GameEventType.PROMOTION_SUCCESS: {

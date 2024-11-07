@@ -1,5 +1,5 @@
 import {AttackPath} from "./arbiter.js";
-import {Color} from "./pieces.js";
+import {Color, Move} from "./pieces.js";
 import {CASTLE_SQUARES, CastleSide} from "./board.js";
 
 export class Utils {
@@ -52,21 +52,45 @@ export class Utils {
         switch (color) {
             case Color.BLACK:
                 if (side === CastleSide.KING_SIDE) {
-                    return [CASTLE_SQUARES.KS.B.KING.FROM, CASTLE_SQUARES.KS.B.ROOK.FROM];
+                    return [CASTLE_SQUARES.KS.AS_WHITE.B.KING.FROM, CASTLE_SQUARES.KS.AS_WHITE.B.ROOK.FROM];
                 } else {
-                    return [CASTLE_SQUARES.QS.B.ROOK.FROM, CASTLE_SQUARES.QS.B.KING.FROM];
+                    return [CASTLE_SQUARES.QS.AS_WHITE.B.ROOK.FROM, CASTLE_SQUARES.QS.AS_WHITE.B.KING.FROM];
                 }
             case Color.WHITE:
                 if (side === CastleSide.KING_SIDE) {
-                    return [CASTLE_SQUARES.KS.W.KING.FROM, CASTLE_SQUARES.KS.W.ROOK.FROM];
+                    return [CASTLE_SQUARES.KS.AS_WHITE.W.KING.FROM, CASTLE_SQUARES.KS.AS_WHITE.W.ROOK.FROM];
                 } else {
-                    return [CASTLE_SQUARES.QS.W.ROOK.FROM, CASTLE_SQUARES.QS.W.KING.FROM];
+                    return [CASTLE_SQUARES.QS.AS_WHITE.W.ROOK.FROM, CASTLE_SQUARES.QS.AS_WHITE.W.KING.FROM];
                 }
         }
     }
 
     static squareUnderAttack(territory: Set<number>[], square: number, opponent: Color): boolean {
         return territory[square].has(opponent);
+    }
+
+    static adjustSquareFor(color: Color, square: number) {
+        switch (color) {
+            case Color.BLACK:
+                return Math.abs(square - 63);
+            case Color.WHITE:
+                return square;
+        }
+    }
+
+    static adjustMoveFor(color: Color, move: Move) {
+        switch (color) {
+            case Color.BLACK:
+                return { from: this.adjustSquareFor(Color.BLACK, move.from), to: this.adjustSquareFor(Color.BLACK, move.to) };
+            case Color.WHITE:
+                return move;
+        }
+    }
+
+    static adjustLegalMoves(color: Color, moves: number[]): number[] {
+        return moves.map((square: number) => {
+           return color === Color.WHITE ? square : this.adjustSquareFor(Color.BLACK, square);
+        });
     }
 
 }
