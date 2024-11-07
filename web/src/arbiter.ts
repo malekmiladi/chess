@@ -1,9 +1,13 @@
 import {Notifier} from "./notifier.js";
-import {Bishop, Color, King, Knight, Pawn, Piece, Queen, Rook, Step} from "./pieces.js";
+import {Bishop, Color, Knight, Pawn, Piece, Queen, Rook, Step} from "./pieces.js";
 import {Utils} from "./utils.js";
 
 export const MOVE_CHECKS = {
     PAWN: {
+        EN_PASSANT: [
+            {x: 0, y: 1},
+            {x: 0, y: -1}
+        ],
         CHECK: {
             B: [
                 {x: 1, y: 1},
@@ -19,7 +23,7 @@ export const MOVE_CHECKS = {
             {x: 1, y: -1},
             {x: 1, y: 0},
             {x: 2, y: 0},
-        ] as Step[],
+        ],
         W: [
             {x: -1, y: 1},
             {x: -1, y: -1},
@@ -89,9 +93,6 @@ export class Arbiter {
         this.threeFoldMoves = 0;
         this.the50ruleMoves = 0;
     }
-
-    // TODO: refine the idea of line of sight for pinned pieces, rethink logic to avoid repetitive code (maybe update state,
-    //       check if state is legal, if not revert back to previous state)
 
     checkForAttackingPiece([x, y]: [number, number], step: Step, color: Color, state: (Piece | undefined)[], forPawn: boolean): AttackPath {
         const [x1, y1] = [x + step.x, y + step.y];

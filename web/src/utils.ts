@@ -1,4 +1,6 @@
 import {AttackPath} from "./arbiter.js";
+import {Color} from "./pieces.js";
+import {CASTLE_SQUARES, CastleSide} from "./board.js";
 
 export class Utils {
     static xToFile(x: number): string {
@@ -44,6 +46,27 @@ export class Utils {
             }
         }
         return blockCount === 0;
+    }
+
+    static getCastleRange(color: Color, side: CastleSide): [number, number] {
+        switch (color) {
+            case Color.BLACK:
+                if (side === CastleSide.KING_SIDE) {
+                    return [CASTLE_SQUARES.KS.B.KING.FROM, CASTLE_SQUARES.KS.B.ROOK.FROM];
+                } else {
+                    return [CASTLE_SQUARES.QS.B.ROOK.FROM, CASTLE_SQUARES.QS.B.KING.FROM];
+                }
+            case Color.WHITE:
+                if (side === CastleSide.KING_SIDE) {
+                    return [CASTLE_SQUARES.KS.W.KING.FROM, CASTLE_SQUARES.KS.W.ROOK.FROM];
+                } else {
+                    return [CASTLE_SQUARES.QS.W.ROOK.FROM, CASTLE_SQUARES.QS.W.KING.FROM];
+                }
+        }
+    }
+
+    static squareUnderAttack(territory: Set<number>[], square: number, opponent: Color): boolean {
+        return territory[square].has(opponent);
     }
 
 }

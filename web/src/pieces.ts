@@ -25,95 +25,123 @@ export type Step = {
     y: number
 }
 
+export type MoveGenOptions = {
+    state: (Piece | undefined)[];
+    territory: Set<number>[];
+}
+
 export interface Piece {
-    id: number;
-    color: Color;
-    sprite: Sprite;
-    moveChecks: Step[];
-    legalMoves: number[];
-    defendedPieces: number[];
+    readonly _id: number;
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    readonly _moveChecks: Step[];
+    _legalMoves: number[];
+    _defendedPieces: number[];
 
+    get legalMoves(): number[];
+    get defendedPieces(): number[];
+    get sprite(): Sprite;
+    get color(): Color;
     getAttackedSquares(): number[];
-
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void;
-
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void;
     isLegalMove(to: number): boolean;
 }
 
 // TODO: rethink legal move generation cause the code is super messy
 
 export class Pawn implements Piece {
-    private firstMove: boolean = true;
-    private enPassantVulnerable: boolean = false;
-    private attackedSquares: number[] = [];
-    private enPassantChecks: Step[] = [
-        {x: 0, y: 1},
-        {x: 0, y: -1}
-    ];
 
-    id: number;
-    moveChecks: Step[];
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
+
+    private _firstMove: boolean = true;
+    private _enPassantVulnerable: boolean = false;
+    private _attackedSquares: number[] = [];
+    private _enPassantChecks: Step[] = MOVE_CHECKS.PAWN.EN_PASSANT;
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
+        this._id = id;
+        this._color = color;
         if (color === Color.WHITE) {
-            this.sprite = SPRITES.PAWN.W;
-            this.moveChecks = MOVE_CHECKS.PAWN.W
+            this._sprite = SPRITES.PAWN.W;
+            this._moveChecks = MOVE_CHECKS.PAWN.W
         } else {
-            this.sprite = SPRITES.PAWN.B;
-            this.moveChecks = MOVE_CHECKS.PAWN.B
+            this._sprite = SPRITES.PAWN.B;
+            this._moveChecks = MOVE_CHECKS.PAWN.B
         }
     }
 
-    isFirstMove() {
-        return this.firstMove;
+    public get id() {
+        return this._id;
     }
 
-    setFirstMove(isFirstMove: boolean) {
-        this.firstMove = isFirstMove;
+    public get color(): Color {
+        return this._color;
     }
 
-    isEnPassant(): boolean {
-        return this.enPassantVulnerable;
+    public get firstMove(): boolean {
+        return this._firstMove;
     }
 
-    public setEnPassantVulnerable(enPassant: boolean): void {
-        this.enPassantVulnerable = enPassant;
+    public set firstMove(v: boolean) {
+        this._firstMove = v;
+    }
+
+    public get enPassantVulnerable(): boolean {
+        return this._enPassantVulnerable;
+    }
+
+    public set enPassantVulnerable(v: boolean) {
+        this._enPassantVulnerable = v;
+    }
+
+    public get sprite(): Sprite {
+        return this._sprite;
+    }
+
+    public get legalMoves(): number[] {
+        return this._legalMoves;
+    }
+
+    public get defendedPieces(): number[] {
+        return this._defendedPieces;
     }
 
     getAttackedSquares(): number[] {
-        return this.attackedSquares.concat(this.defendedPieces);
+        return this._attackedSquares.concat(this._defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
-        this.attackedSquares = [];
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
+        this._attackedSquares = [];
+
+        const [x, y]: [number, number] = Utils.toXY(square);
         let pieceOnTheWay: boolean = false;
 
         const [isPinned, path] = Utils.thisIsPinned(square, pins);
         const kingInCheck = kChecks.length > 0;
 
-        const [x, y]: [number, number] = Utils.toXY(square);
-        for (let i: number = 0; i < this.moveChecks.length && !pieceOnTheWay; i++) {
-            const step: Step = this.moveChecks[i];
+        for (let i: number = 0; i < this._moveChecks.length && !pieceOnTheWay; i++) {
+            const step: Step = this._moveChecks[i];
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
+
             if (Utils.xyWithingBounds(x1, y1)) {
                 let resolvesCheck = true;
                 let resolvesPin = true;
                 let resolvesCheckAndPin = true;
 
                 const targetSquare: number = Utils.toSquare(x1, y1);
-                const otherPiece: (Piece | undefined) = board.state[targetSquare];
+                const otherPiece: (Piece | undefined) = opts.state[targetSquare];
 
                 if (kingInCheck) {
                     resolvesCheck = Utils.moveBlocksCheck(targetSquare, kChecks);
                 }
+
                 if (isPinned) {
                     resolvesPin = path.includes(targetSquare);
                 }
@@ -123,12 +151,13 @@ export class Pawn implements Piece {
                 if (resolvesCheckAndPin) {
                     const isDiagonalStep = step.y !== 0;
                     if (isDiagonalStep) {
-                        this.attackedSquares.push(targetSquare);
+                        this._attackedSquares.push(targetSquare);
                         if (otherPiece) {
-                            if (otherPiece.color !== this.color) {
-                                this.legalMoves.push(targetSquare);
+                            const isOpponent = otherPiece.color !== this._color;
+                            if (isOpponent) {
+                                this._legalMoves.push(targetSquare);
                             } else {
-                                this.defendedPieces.push(targetSquare);
+                                this._defendedPieces.push(targetSquare);
                             }
                         }
                     } else {
@@ -136,7 +165,7 @@ export class Pawn implements Piece {
                             const oneStepForward = Math.abs(step.x) === 1;
                             const twoStepsForward = Math.abs(step.x) === 2;
                             if (oneStepForward || (twoStepsForward && this.firstMove)) {
-                                this.legalMoves.push(targetSquare);
+                                this._legalMoves.push(targetSquare);
                             }
                         } else {
                             pieceOnTheWay = true;
@@ -145,18 +174,21 @@ export class Pawn implements Piece {
                 }
             }
         }
-        for (const step of this.enPassantChecks) {
+
+        for (const step of this._enPassantChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
+
             if (Utils.xyWithingBounds(x1, y1)) {
-                const square: number = Utils.toSquare(x1, y1);
-                const otherPiece: (Piece | undefined) = board.state[square];
+                const targetSquare: number = Utils.toSquare(x1, y1);
+                const otherPiece: (Piece | undefined) = opts.state[targetSquare];
+
                 if (otherPiece) {
                     const isOpponent = otherPiece.color !== this.color;
                     const isPawn = otherPiece instanceof Pawn;
-                    if (isOpponent && isPawn && otherPiece.isEnPassant()) {
+                    if (isOpponent && isPawn && (<Pawn>otherPiece).enPassantVulnerable) {
                         const xIncrement = this.color === Color.BLACK ? 1 : -1;
                         const enPassantSquare = Utils.toSquare(x1 + xIncrement, y1);
-                        this.legalMoves.push(enPassantSquare);
+                        this._legalMoves.push(enPassantSquare);
                     }
                 }
             }
@@ -164,59 +196,82 @@ export class Pawn implements Piece {
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 
 }
 
 export class King implements Piece {
-    id: number;
-    moveChecks: Step[] = MOVE_CHECKS.KING;
-    private firstMove: boolean = true;
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
-    surroundingSquares: number[] = []
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
+
+    private _firstMove: boolean = true;
+    private _surroundingSquares: number[] = []
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
-        this.sprite = color === Color.WHITE ? SPRITES.KING.W : SPRITES.KING.B;
+        this._id = id;
+        this._color = color;
+        this._sprite = color === Color.WHITE ? SPRITES.KING.W : SPRITES.KING.B;
+        this._moveChecks = MOVE_CHECKS.KING;
     }
 
-    public isFirstMove() {
-        return this.firstMove;
+    public get id() {
+        return this._id;
     }
 
-    public setFirstMove(isFirstMove: boolean) {
-        this.firstMove = isFirstMove;
+    public get sprite() {
+        return this._sprite;
+    }
+
+    public get color() {
+        return this._color;
+    }
+
+    public get legalMoves() {
+        return this._legalMoves;
+    }
+
+    public get defendedPieces() {
+        return this._defendedPieces;
+    }
+
+    public get firstMove(): boolean {
+        return this._firstMove;
+    }
+
+    public set firstMove(v: boolean) {
+        this._firstMove = v;
     }
 
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this._legalMoves.concat(this._defendedPieces);
     }
 
     getSurroundingSquares(square: number): number[] {
-        this.surroundingSquares = [];
+        this._surroundingSquares = [];
         const [x, y]: [number, number] = Utils.toXY(square);
-        for (const step of this.moveChecks) {
+        for (const step of this._moveChecks) {
             const [x1, y1] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
-                this.surroundingSquares.push(Utils.toSquare(x1, y1));
+                this._surroundingSquares.push(Utils.toSquare(x1, y1));
             }
         }
-        return this.surroundingSquares;
+        return this._surroundingSquares;
     }
 
-    getCastleSquare(rook: (Rook | undefined), board: Board, start: number, end: number, ks: boolean): number {
+    getCastleSquare(rook: (Rook | undefined), opts: MoveGenOptions, start: number, end: number, ks: boolean): number {
         let pathObstructed: boolean = false;
-        const opponent = this.color === Color.WHITE ? Color.BLACK : Color.WHITE;
-        if (rook?.isFirstMove()) {
+        const opponent = this._color === Color.WHITE ? Color.BLACK : Color.WHITE;
+
+        if (rook?.firstMove) {
             let i: number = start + 1;
             while (i < end && !pathObstructed) {
-                let pathUnderAttack: boolean = board.territory[i].has(opponent);
-                if ((board.state[i] !== undefined) || pathUnderAttack) {
+                let pathUnderAttack: boolean = Utils.squareUnderAttack(opts.territory, i, opponent);
+                if ((opts.state[i] !== undefined) || pathUnderAttack) {
                     pathObstructed = true;
                 }
                 i++;
@@ -232,23 +287,25 @@ export class King implements Piece {
         return -1;
     }
 
-    generateCastleMoves(board: Board): number[] {
+    generateCastleMoves(opts: MoveGenOptions): number[] {
         let castleMoves: number[] = [];
+
         let [ksStart, ksEnd]: [number, number] = [-1, -1];
         let [qsStart, qsEnd]: [number, number] = [-1, -1];
-        if (this.firstMove) {
 
-            [ksStart, ksEnd] = board.getCastleRange(this.color, CastleSide.KING_SIDE);
-            [qsStart, qsEnd] = board.getCastleRange(this.color, CastleSide.QUEEN_SIDE);
+        if (this._firstMove) {
 
-            const ksRook: (Piece | undefined) = board.state[ksEnd];
-            const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, board, ksStart, ksEnd, true);
+            [ksStart, ksEnd] = Utils.getCastleRange(this._color, CastleSide.KING_SIDE);
+            [qsStart, qsEnd] = Utils.getCastleRange(this._color, CastleSide.QUEEN_SIDE);
+
+            const ksRook: (Piece | undefined) = opts.state[ksEnd];
+            const ksCastleSquare = this.getCastleSquare(<Rook>ksRook, opts, ksStart, ksEnd, true);
             if (ksCastleSquare !== -1) {
                 castleMoves.push(ksCastleSquare);
             }
 
-            const qsRook: (Piece | undefined) = board.state[qsStart];
-            const qsCastleSquare = this.getCastleSquare(<Rook>qsRook, board, qsStart, qsEnd, false);
+            const qsRook: (Piece | undefined) = opts.state[qsStart];
+            const qsCastleSquare = this.getCastleSquare(<Rook>qsRook, opts, qsStart, qsEnd, false);
             if (qsCastleSquare !== -1) {
                 castleMoves.push(qsCastleSquare);
             }
@@ -257,22 +314,22 @@ export class King implements Piece {
         return castleMoves;
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
-        this.surroundingSquares = [];
-        const adversary: Color = this.color === Color.BLACK ? Color.WHITE : Color.BLACK;
+    generateLegalMoves(square: number, opts: MoveGenOptions, _: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
+        this._surroundingSquares = [];
+        const opponent: Color = this.color === Color.BLACK ? Color.WHITE : Color.BLACK;
         const [x, y]: [number, number] = Utils.toXY(square);
 
-        for (const step of this.moveChecks) {
+        for (const step of this._moveChecks) {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                this.surroundingSquares.push(square);
-                if (!board.isUnderAttack(square, adversary)) {
-                    const piece: (Piece | undefined) = board.state[square];
+                this._surroundingSquares.push(square);
+                if (!Utils.squareUnderAttack(opts.territory, square, opponent)) {
+                    const piece: (Piece | undefined) = opts.state[square];
                     if (!piece || (piece.color !== this.color)) {
-                        this.legalMoves.push(square);
+                        this._legalMoves.push(square);
                     } else if (piece.color === this.color) {
                         this.defendedPieces.push(square);
                     }
@@ -281,35 +338,56 @@ export class King implements Piece {
         }
         const kingInCheck = kChecks.length > 0;
         if (!kingInCheck) {
-            const castles: number[] = this.generateCastleMoves(board);
-            this.legalMoves = this.legalMoves.concat(castles);
+            const castles: number[] = this.generateCastleMoves(opts);
+            this._legalMoves = this._legalMoves.concat(castles);
         }
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 }
 
 export class Queen implements Piece {
-    id: number;
-    moveChecks: Step[] = MOVE_CHECKS.QUEEN;
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
-        this.sprite = color === Color.WHITE ? SPRITES.QUEEN.W : SPRITES.QUEEN.B;
+        this._id = id;
+        this._color = color;
+        this._sprite = color === Color.WHITE ? SPRITES.QUEEN.W : SPRITES.QUEEN.B;
+        this._moveChecks = MOVE_CHECKS.QUEEN;
+    }
+
+    public get id() {
+        return this._id;
+    }
+
+    public get sprite() {
+        return this._sprite;
+    }
+
+    public get color() {
+        return this._color;
+    }
+
+    public get legalMoves() {
+        return this._legalMoves;
+    }
+
+    public get defendedPieces() {
+        return this._defendedPieces;
     }
 
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this._legalMoves.concat(this._defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
+    walkPath(startSquare: number, step: Step, state: (Piece | undefined)[], pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
@@ -322,7 +400,7 @@ export class Queen implements Piece {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                const piece: (Piece | undefined) = board.state[square];
+                const piece: (Piece | undefined) = state[square];
 
                 let resolvesCheck = true;
                 let resolvesPin = true;
@@ -340,14 +418,14 @@ export class Queen implements Piece {
                 if (!piece) {
                     if (!kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
-                        this.defendedPieces.push(square);
+                        this._defendedPieces.push(square);
                     }
                 } else {
                     const isKing = piece instanceof King;
-                    const isOpponent = piece.color !== this.color;
+                    const isOpponent = piece.color !== this._color;
                     if (isOpponent && isKing) {
                         kingInPath = true;
                     } else {
@@ -355,10 +433,10 @@ export class Queen implements Piece {
                     }
                     if (isOpponent && !kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
-                        this.defendedPieces.push(square);
+                        this._defendedPieces.push(square);
                     }
                 }
 
@@ -369,38 +447,59 @@ export class Queen implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
-        for (const step of this.moveChecks) {
-            this.walkPath(square, step, board, pins, kChecks);
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
+        for (const step of this._moveChecks) {
+            this.walkPath(square, step, opts.state, pins, kChecks);
         }
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 }
 
 export class Bishop implements Piece {
-    id: number;
-    moveChecks: Step[] = MOVE_CHECKS.BISHOP;
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
-        this.sprite = color === Color.WHITE ? SPRITES.BISHOP.W : SPRITES.BISHOP.B;
+        this._id = id;
+        this._color = color;
+        this._sprite = color === Color.WHITE ? SPRITES.BISHOP.W : SPRITES.BISHOP.B;
+        this._moveChecks = MOVE_CHECKS.BISHOP;
+    }
+
+    public get id() {
+        return this._id;
+    }
+
+    public get sprite() {
+        return this._sprite;
+    }
+
+    public get color() {
+        return this._color;
+    }
+
+    public get legalMoves() {
+        return this._legalMoves;
+    }
+
+    public get defendedPieces() {
+        return this._defendedPieces;
     }
 
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this._legalMoves.concat(this._defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
+    walkPath(startSquare: number, step: Step, state: (Piece | undefined)[], pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
@@ -413,7 +512,7 @@ export class Bishop implements Piece {
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                const piece: (Piece | undefined) = board.state[square];
+                const piece: (Piece | undefined) = state[square];
 
                 let resolvesCheck = true;
                 let resolvesPin = true;
@@ -431,14 +530,14 @@ export class Bishop implements Piece {
                 if (!piece) {
                     if (!kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
                         this.defendedPieces.push(square);
                     }
                 } else {
                     const isKing = piece instanceof King;
-                    const isOpponent = piece.color !== this.color;
+                    const isOpponent = piece.color !== this._color;
                     if (isOpponent && isKing) {
                         kingInPath = true;
                     } else {
@@ -446,7 +545,7 @@ export class Bishop implements Piece {
                     }
                     if (isOpponent && !kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
                         this.defendedPieces.push(square);
@@ -460,50 +559,71 @@ export class Bishop implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
-        for (const step of this.moveChecks) {
-            this.walkPath(square, step, board, pins, kChecks);
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
+        for (const step of this._moveChecks) {
+            this.walkPath(square, step, opts.state, pins, kChecks);
         }
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 }
 
 export class Knight implements Piece {
-    id: number;
-    moveChecks: Step[] = MOVE_CHECKS.KNIGHT;
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
-        this.sprite = color === Color.WHITE ? SPRITES.KNIGHT.W : SPRITES.KNIGHT.B;
+        this._id = id;
+        this._color = color;
+        this._sprite = color === Color.WHITE ? SPRITES.KNIGHT.W : SPRITES.KNIGHT.B;
+        this._moveChecks = MOVE_CHECKS.KNIGHT;
+    }
+
+    public get id() {
+        return this._id;
+    }
+
+    public get sprite() {
+        return this._sprite;
+    }
+
+    public get color() {
+        return this._color;
+    }
+
+    public get legalMoves() {
+        return this._legalMoves;
+    }
+
+    public get defendedPieces() {
+        return this._defendedPieces;
     }
 
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this._legalMoves.concat(this._defendedPieces);
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
 
         const [isPinned, path] = Utils.thisIsPinned(square, pins);
         const kingInCheck = kChecks.length > 0;
 
-        for (const step of this.moveChecks) {
+        for (const step of this._moveChecks) {
             const [x, y]: [number, number] = Utils.toXY(square);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                const piece: (Piece | undefined) = board.state[square];
+                const piece: (Piece | undefined) = opts.state[square];
 
                 let resolvesCheck = true;
                 let resolvesPin = true;
@@ -519,10 +639,10 @@ export class Knight implements Piece {
                 resolvesCheckAndPin = resolvesCheck && resolvesPin;
 
                 if (resolvesCheckAndPin) {
-                    if (!piece || (piece.color !== this.color)) {
-                        this.legalMoves.push(square);
-                    } else if (piece.color === this.color) {
-                        this.defendedPieces.push(square);
+                    if (!piece || (piece.color !== this._color)) {
+                        this._legalMoves.push(square);
+                    } else if (piece.color === this._color) {
+                        this._defendedPieces.push(square);
                     }
                 }
             }
@@ -530,38 +650,60 @@ export class Knight implements Piece {
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 }
 
 export class Rook implements Piece {
-    id: number;
-    moveChecks: Step[] = MOVE_CHECKS.ROOK;
-    private firstMove: boolean = true;
-    color: Color;
-    sprite: Sprite;
-    legalMoves: number[] = [];
-    defendedPieces: number[] = [];
+    readonly _id: number;
+    readonly _moveChecks: Step[];
+    readonly _color: Color;
+    readonly _sprite: Sprite;
+    _legalMoves: number[] = [];
+    _defendedPieces: number[] = [];
+
+    private _firstMove: boolean = true;
 
     constructor(id: number, color: Color) {
-        this.id = id;
-        this.color = color;
-        this.sprite = color === Color.WHITE ? SPRITES.ROOK.W : SPRITES.ROOK.B;
+        this._id = id;
+        this._color = color;
+        this._sprite = color === Color.WHITE ? SPRITES.ROOK.W : SPRITES.ROOK.B;
+        this._moveChecks = MOVE_CHECKS.ROOK;
     }
 
-    public isFirstMove() {
-        return this.firstMove;
+    public get id() {
+        return this._id;
     }
 
-    public setFirstMove(isFirstMove: boolean) {
-        this.firstMove = isFirstMove;
+    public get color() {
+        return this._color;
+    }
+
+    public get legalMoves() {
+        return this._legalMoves;
+    }
+
+    public get sprite() {
+        return this._sprite;
+    }
+
+    public get defendedPieces() {
+        return this._defendedPieces;
+    }
+
+    public get firstMove() {
+        return this._firstMove;
+    }
+
+    public set firstMove(v: boolean) {
+        this._firstMove = v;
     }
 
     getAttackedSquares(): number[] {
-        return this.legalMoves.concat(this.defendedPieces);
+        return this._legalMoves.concat(this._defendedPieces);
     }
 
-    walkPath(startSquare: number, step: Step, board: Board, pins: AttackPath[], kChecks: AttackPath[]) {
+    walkPath(startSquare: number, step: Step, state: (Piece | undefined)[], pins: AttackPath[], kChecks: AttackPath[]) {
         let stopWalking: boolean = false;
         let squareIndex: number = startSquare;
         let kingInPath: boolean = false;
@@ -572,9 +714,10 @@ export class Rook implements Piece {
         while ((squareIndex < 64 && squareIndex > -1) && !stopWalking) {
             const [x, y]: [number, number] = Utils.toXY(squareIndex);
             const [x1, y1]: [number, number] = [x + step.x, y + step.y];
+
             if (Utils.xyWithingBounds(x1, y1)) {
                 const square: number = Utils.toSquare(x1, y1);
-                const piece: (Piece | undefined) = board.state[square];
+                const piece: (Piece | undefined) = state[square];
 
                 let resolvesCheck = true;
                 let resolvesPin = true;
@@ -592,14 +735,15 @@ export class Rook implements Piece {
                 if (!piece) {
                     if (!kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
-                        this.defendedPieces.push(square);
+                        this._defendedPieces.push(square);
                     }
                 } else {
                     const isKing = piece instanceof King;
                     const isOpponent = piece.color !== this.color;
+
                     if (isOpponent && isKing) {
                         kingInPath = true;
                     } else {
@@ -607,10 +751,10 @@ export class Rook implements Piece {
                     }
                     if (isOpponent && !kingInPath) {
                         if (resolvesCheckAndPin) {
-                            this.legalMoves.push(square);
+                            this._legalMoves.push(square);
                         }
                     } else {
-                        this.defendedPieces.push(square);
+                        this._defendedPieces.push(square);
                     }
                 }
 
@@ -621,15 +765,15 @@ export class Rook implements Piece {
         }
     }
 
-    generateLegalMoves(square: number, board: Board, pins: AttackPath[], kChecks: AttackPath[]): void {
-        this.legalMoves = [];
-        this.defendedPieces = [];
-        for (const step of this.moveChecks) {
-            this.walkPath(square, step, board, pins, kChecks);
+    generateLegalMoves(square: number, opts: MoveGenOptions, pins: AttackPath[], kChecks: AttackPath[]): void {
+        this._legalMoves = [];
+        this._defendedPieces = [];
+        for (const step of this._moveChecks) {
+            this.walkPath(square, step, opts.state, pins, kChecks);
         }
     }
 
     isLegalMove(to: number): boolean {
-        return this.legalMoves.includes(to);
+        return this._legalMoves.includes(to);
     }
 }

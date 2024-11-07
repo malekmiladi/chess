@@ -1,8 +1,7 @@
-import {Bishop, Color, King, Knight, Move, Pawn, Piece, Queen, Rook} from './pieces.js'
+import {Bishop, Color, King, Knight, Move, MoveGenOptions, Pawn, Piece, Queen, Rook} from './pieces.js'
 import {Notifier} from './notifier.js'
 import {Utils} from "./utils.js";
 import {GameEventType} from "./game-events.js";
-import {CustomStates} from "./custom-states.js";
 import {Arbiter, AttackPath} from "./arbiter.js";
 
 export enum CastleSide {
@@ -71,54 +70,54 @@ export enum Promotions {
     KNIGHT
 }
 
-export class Board {
-
-    readonly CASTLE_SQUARES = {
-        QS: {
-            B: {
-                KING: {
-                    FROM: 4,
-                    TO: 2
-                },
-                ROOK: {
-                    FROM: 0,
-                    TO: 3
-                }
+export const CASTLE_SQUARES = {
+    QS: {
+        B: {
+            KING: {
+                FROM: 4,
+                TO: 2
             },
-            W: {
-                KING: {
-                    FROM: 60,
-                    TO: 58
-                },
-                ROOK: {
-                    FROM: 56,
-                    TO: 59
-                }
+            ROOK: {
+                FROM: 0,
+                TO: 3
             }
         },
-        KS: {
-            B: {
-                KING: {
-                    FROM: 4,
-                    TO: 6
-                },
-                ROOK: {
-                    FROM: 7,
-                    TO: 5
-                }
+        W: {
+            KING: {
+                FROM: 60,
+                TO: 58
             },
-            W: {
-                KING: {
-                    FROM: 60,
-                    TO: 62
-                },
-                ROOK: {
-                    FROM: 63,
-                    TO: 61
-                }
+            ROOK: {
+                FROM: 56,
+                TO: 59
+            }
+        }
+    },
+    KS: {
+        B: {
+            KING: {
+                FROM: 4,
+                TO: 6
+            },
+            ROOK: {
+                FROM: 7,
+                TO: 5
+            }
+        },
+        W: {
+            KING: {
+                FROM: 60,
+                TO: 62
+            },
+            ROOK: {
+                FROM: 63,
+                TO: 61
             }
         }
     }
+}
+
+export class Board {
 
     notifier: Notifier;
     arbiter: Arbiter;
@@ -135,16 +134,14 @@ export class Board {
         this.notifier = notifier;
         this.arbiter = arbiter;
         this.kings = {
-            b: this.CASTLE_SQUARES.KS.B.KING.FROM,
-            w: this.CASTLE_SQUARES.KS.W.KING.FROM
+            b: CASTLE_SQUARES.KS.B.KING.FROM,
+            w: CASTLE_SQUARES.KS.W.KING.FROM
         } as Kings;
         this.promotionInProgress = {
             square: -1
         };
 
-        this.state = CustomStates.PinScenario();
-        // this.state = CustomStates.KingsQueenKnight();
-        // this.initialize();
+        this.initialize();
         this.updateLegalMoves(null);
     }
 
@@ -187,17 +184,12 @@ export class Board {
             this.territory.push(new Set());
         }
     }
-
-    isUnderAttack(square: number, adversary: Color): boolean {
-        return this.territory[square].has(adversary);
-    }
-
-    // TODO: rename func variables...
-    updateLegalMoves(ignoreEnPassantForThisSquare: number | null): void {
+    
+    updateLegalMoves(ignoreSquare: number | null): void {
         this.resetTerritory();
 
-        // findKingAttackingPieces and findPinnedPieces should be different because for findPinnedPieces, we're checking individual
-        // rays, and not all legal moves of opponent pinning piece
+        // REMEMBER findKingAttackingPieces and findPinnedPieces should be different because for findPinnedPieces,
+        // we're checking individual rays, and not all legal moves of opponent pinning piece
         const bkChecks = this.arbiter.findKingAttackingPieces(this.kings.b, this.state, Color.BLACK);
         const wkChecks = this.arbiter.findKingAttackingPieces(this.kings.w, this.state, Color.WHITE);
 
@@ -207,22 +199,23 @@ export class Board {
         const pinnedByWhite: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.b, this.state, Color.BLACK);
         const pinnedByBlack: AttackPath[] = this.arbiter.findPinnedPieces(this.kings.w, this.state, Color.WHITE);
 
+        const moveGenOpts: MoveGenOptions = { state: this.state, territory: this.territory };
+
         for (let i: number = 0; i < 64; i++) {
             const piece = this.state[i];
-            if (piece) {
-                if (piece instanceof Pawn) {
-                    if ((ignoreEnPassantForThisSquare !== i) && piece.isEnPassant()) {
-                        piece.setEnPassantVulnerable(false);
-                    }
-                }
-                // TODO: i don't like passing "this" as parameter, counter intuitive. Change logic later. maybe arbiter
-                //      should call the function?
 
-                // 1st call to get all legal moves while ignoring pins
+            if (piece) {
+                const isPawn = piece instanceof Pawn;
+                const isEnPassantVulnerable = isPawn && (ignoreSquare !== i) && (<Pawn>piece).enPassantVulnerable;
+
+                if (isEnPassantVulnerable) {
+                    (<Pawn>piece).enPassantVulnerable = false;
+                }
+
                 if (piece.color === Color.WHITE) {
-                    piece.generateLegalMoves(i, this, pinnedByBlack, wkChecks);
+                    piece.generateLegalMoves(i, moveGenOpts, pinnedByBlack, wkChecks);
                 } else {
-                    piece.generateLegalMoves(i, this, pinnedByWhite, bkChecks);
+                    piece.generateLegalMoves(i, moveGenOpts, pinnedByWhite, bkChecks);
                 }
 
                 const attackedSquares: number[] = piece.getAttackedSquares();
@@ -311,38 +304,38 @@ export class Board {
 
     handleCastleMove(move: Move, op: MoveOperation): void {
         switch (move.to) {
-            case this.CASTLE_SQUARES.QS.B.KING.TO:
+            case CASTLE_SQUARES.QS.B.KING.TO:
                 op.action = {
                     rook: {
-                        from: this.CASTLE_SQUARES.QS.B.ROOK.FROM,
-                        to: this.CASTLE_SQUARES.QS.B.ROOK.TO
+                        from: CASTLE_SQUARES.QS.B.ROOK.FROM,
+                        to: CASTLE_SQUARES.QS.B.ROOK.TO
                     },
                     move: move
                 };
                 break
-            case this.CASTLE_SQUARES.KS.B.KING.TO:
+            case CASTLE_SQUARES.KS.B.KING.TO:
                 op.action = {
                     rook: {
-                        from: this.CASTLE_SQUARES.KS.B.ROOK.FROM,
-                        to: this.CASTLE_SQUARES.KS.B.ROOK.TO
+                        from: CASTLE_SQUARES.KS.B.ROOK.FROM,
+                        to: CASTLE_SQUARES.KS.B.ROOK.TO
                     },
                     move: move
                 };
                 break
-            case this.CASTLE_SQUARES.QS.W.KING.TO:
+            case CASTLE_SQUARES.QS.W.KING.TO:
                 op.action = {
                     rook: {
-                        from: this.CASTLE_SQUARES.QS.W.ROOK.FROM,
-                        to: this.CASTLE_SQUARES.QS.W.ROOK.TO
+                        from: CASTLE_SQUARES.QS.W.ROOK.FROM,
+                        to: CASTLE_SQUARES.QS.W.ROOK.TO
                     },
                     move: move
                 };
                 break;
-            case this.CASTLE_SQUARES.KS.W.KING.TO:
+            case CASTLE_SQUARES.KS.W.KING.TO:
                 op.action = {
                     rook: {
-                        from: this.CASTLE_SQUARES.KS.W.ROOK.FROM,
-                        to: this.CASTLE_SQUARES.KS.W.ROOK.TO
+                        from: CASTLE_SQUARES.KS.W.ROOK.FROM,
+                        to: CASTLE_SQUARES.KS.W.ROOK.TO
                     },
                     move: move
                 };
@@ -416,8 +409,8 @@ export class Board {
                 const isRook = piece instanceof Rook;
 
                 if (isPawn || isKing || isRook) {
-                    if (piece.isFirstMove()) {
-                        piece.setFirstMove(false);
+                    if (piece.firstMove) {
+                        piece.firstMove = false;
                     }
                     if (isKing) {
                         if (piece.color === Color.BLACK) {
@@ -430,7 +423,7 @@ export class Board {
 
                 const pawn2SquaresMove = Math.abs(xTo - xFrom) === 2;
                 if (isPawn && pawn2SquaresMove) {
-                    piece.setEnPassantVulnerable(true);
+                    (<Pawn>piece).enPassantVulnerable = true;
                     newEnPassant = move.to;
                 }
 
@@ -468,7 +461,7 @@ export class Board {
             }
             case Promotions.ROOK: {
                 const rook = new Rook(pawn.id, pawn.color);
-                rook.setFirstMove(false);
+                rook.firstMove = false;
                 this.state[this.promotionInProgress.square] = rook;
                 break;
             }
@@ -511,23 +504,6 @@ export class Board {
 
     getCurrentState(): (Piece | undefined)[] {
         return this.state;
-    }
-
-    getCastleRange(color: Color, side: CastleSide): [number, number] {
-        switch (color) {
-            case Color.BLACK:
-                if (side === CastleSide.KING_SIDE) {
-                    return [this.CASTLE_SQUARES.KS.B.KING.FROM, this.CASTLE_SQUARES.KS.B.ROOK.FROM];
-                } else {
-                    return [this.CASTLE_SQUARES.QS.B.ROOK.FROM, this.CASTLE_SQUARES.QS.B.KING.FROM];
-                }
-            case Color.WHITE:
-                if (side === CastleSide.KING_SIDE) {
-                    return [this.CASTLE_SQUARES.KS.W.KING.FROM, this.CASTLE_SQUARES.KS.W.ROOK.FROM];
-                } else {
-                    return [this.CASTLE_SQUARES.QS.W.ROOK.FROM, this.CASTLE_SQUARES.QS.W.KING.FROM];
-                }
-        }
     }
 
 }
