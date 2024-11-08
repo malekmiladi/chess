@@ -19,7 +19,7 @@ tsc
 next run:
 
 ```bash
-go run .
+go run ./server
 ```
 
 Once the server's up and running, head to http://localhost:8000

@@ -31,7 +31,6 @@ export class Game implements Subscriber {
     }
 
     run() {
-        this.state.playAsWhite = false;
         this.displayDriver.drawBoard();
         this.displayDriver.drawPieces(this.state.playAsWhite, this.board.getCurrentState());
     }

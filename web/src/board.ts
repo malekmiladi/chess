@@ -298,7 +298,7 @@ export class Board {
         let adjustedWKSquare: number;
 
         if (playAsWhite) {
-            adjustedWKSquare = Utils.adjustSquareFor(Color.WHITE, this.kings.b);
+            adjustedWKSquare = Utils.adjustSquareFor(Color.WHITE, this.kings.w);
             adjustedBKSquare = Utils.adjustSquareFor(Color.WHITE, this.kings.b);
         } else {
             adjustedBKSquare = Utils.adjustSquareFor(Color.BLACK, this.kings.b);
