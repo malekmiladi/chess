@@ -5,7 +5,7 @@ import {Color, Move, Piece} from "./pieces.js";
 import {Utils} from "./utils.js";
 import {SPRITES} from "./sprites.js";
 
-export class Display {
+export class DisplayManager {
 
     ctx: HTMLDivElement;
     notifier: Notifier;
