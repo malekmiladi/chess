@@ -6,55 +6,55 @@ export type Sprite = {
 export const SPRITES = {
     KING: {
         B: {
-            SVG: "./assets/bK.svg"
+            SVG: "./assets/sprites/bK.svg"
         } as Sprite,
         W: {
-            SVG: "./assets/wK.svg"
+            SVG: "./assets/sprites/wK.svg"
         } as Sprite
     },
     QUEEN: {
         B: {
-            SVG: "./assets/bQ.svg"
+            SVG: "./assets/sprites/bQ.svg"
         } as Sprite,
         W: {
-            SVG: "./assets/wQ.svg"
+            SVG: "./assets/sprites/wQ.svg"
         } as Sprite
     },
     BISHOP: {
         B: {
-            SVG: "./assets/bB.svg"
+            SVG: "./assets/sprites/bB.svg"
         } as Sprite,
         W: {
-            SVG: "./assets/wB.svg"
+            SVG: "./assets/sprites/wB.svg"
         } as Sprite
     },
     KNIGHT: {
         B: {
-            SVG: "./assets/bN.svg"
+            SVG: "./assets/sprites/bN.svg"
             
         } as Sprite,
         W: {
-            SVG: "./assets/wN.svg"
+            SVG: "./assets/sprites/wN.svg"
             
         } as Sprite
     },
     ROOK: {
         B: {
-            SVG: "./assets/bR.svg"
+            SVG: "./assets/sprites/bR.svg"
             
         } as Sprite,
         W: {
-            SVG: "./assets/wR.svg"
+            SVG: "./assets/sprites/wR.svg"
             
         } as Sprite
     },
     PAWN: {
         B: {
-            SVG: "./assets/bP.svg"
+            SVG: "./assets/sprites/bP.svg"
 
         } as Sprite,
         W: {
-            SVG: "./assets/wP.svg"
+            SVG: "./assets/sprites/wP.svg"
         } as Sprite
     }
 };

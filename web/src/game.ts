@@ -1,9 +1,9 @@
-import {Board, LegalMovesHighlightOptions} from "./board.js";
+import {Board, LegalMovesHighlightOptions, MoveType} from "./board.js";
 import {Display} from "./display.js";
 import {GameEvent, GameEventType} from "./game-events.js";
 import {Notifier, Subscriber} from "./notifier.js";
 import {Arbiter} from "./arbiter.js";
-import {Color} from "./pieces.js";
+import {AudioManager} from "./audio.js";
 
 export type GameState = {
     whiteTurn: boolean;
@@ -17,6 +17,7 @@ export class Game implements Subscriber {
     board: Board;
     arbiter: Arbiter;
     displayDriver: Display;
+    audioManager: AudioManager;
     state: GameState;
 
     constructor(ctx: HTMLDivElement) {
@@ -25,6 +26,7 @@ export class Game implements Subscriber {
         this.notifier = new Notifier(this);
         this.arbiter = new Arbiter(this.notifier);
         this.displayDriver = new Display(ctx.ownerDocument.getElementById("game") as HTMLDivElement, this.notifier);
+        this.audioManager = new AudioManager();
         this.board = new Board(this.notifier, this.arbiter);
     }
 
@@ -50,6 +52,19 @@ export class Game implements Subscriber {
             case GameEventType.UPDATE_DISPLAY: {
                 this.state.whiteTurn = !this.state.whiteTurn;
                 this.displayDriver.applyMove(event.op);
+                switch (event.op.type) {
+                    case MoveType.MOVE: {
+                        this.audioManager.playAudio("move");
+                        break;
+                    }
+                    case MoveType.CASTLE: {
+                        this.audioManager.playAudio("castle");
+                        break;
+                    }
+                    case MoveType.TAKE: {
+                        this.audioManager.playAudio("capture");
+                    }
+                }
                 break;
             }
             case GameEventType.PROMOTION: {
@@ -62,10 +77,12 @@ export class Game implements Subscriber {
             }
             case GameEventType.PROMOTION_SUCCESS: {
                 this.displayDriver.applyPromotion(event.square, event.choice, event.color);
+                this.audioManager.playAudio("promote");
                 break;
             }
             case GameEventType.CHECK: {
                 this.displayDriver.checkKing(event.square);
+                this.audioManager.playAudio("check");
                 break;
             }
             case GameEventType.CLEAR_CHECK: {

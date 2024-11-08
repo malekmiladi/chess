@@ -192,8 +192,7 @@ export class Board {
             forWhite: true
         };
 
-        this.state = CustomStates.Castles();
-        //this.initialize();
+        this.initialize();
         this.updateLegalMoves(null, true);
     }
 
@@ -448,11 +447,13 @@ export class Board {
                 switch (op.type) {
                     case MoveType.TAKE: {
                         this.takePiece(adjustedMove.to);
+                        op.type = MoveType.TAKE;
                         break;
                     }
                     case MoveType.CASTLE: {
                         const castleSquares = this.getCastleSquares(move);
                         const adjustedCastleSquares = this.getCastleSquares(adjustedMove);
+                        op.type = MoveType.CASTLE;
                         op.action.move = move;
                         (<CastleMove>op.action).rook = castleSquares;
                         const rook: Rook = <Rook>this.state[adjustedCastleSquares.from];
@@ -522,7 +523,6 @@ export class Board {
                 }
             }
         }
-        console.log(this.state);
     }
 
     promotePiece(choice: number, playAsWhite: boolean) {

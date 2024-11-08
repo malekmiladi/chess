@@ -42,8 +42,8 @@ This project is a "hobby" project, it's a work in progress, and right now there'
 - [X] Implement castling
 - [X] Implement pinned pieces logic
 - [X] Implement check feature
+- [X] Implement draw board for color feature
 - [ ] Implement player
-- [ ] Implement draw board for color feature
 - [ ] Implement websocket messaging with backend
 - [ ] Implement timer
 - [ ] Implement resign feature

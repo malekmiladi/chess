@@ -6,6 +6,7 @@ export enum GameEventType {
     START_GAME,
     HIGHLIGHT_LEGAL_MOVES,
     MOVE_PIECE,
+    CASTLE,
     TAKE_PIECE,
     CHECK,
     CLEAR_CHECK,
